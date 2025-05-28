@@ -1,5 +1,7 @@
 # LogiQuest API
 
+## For any question contact us through our telegram channel: https://t.me/+uCENCnbnruxiMjA0
+
 A robust NestJS backend API for the LogiQuest puzzle game platform. Built with TypeScript, featuring modular architecture, comprehensive security, and developer-friendly tooling.
 
 ## 🚀 Features
