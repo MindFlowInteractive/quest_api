@@ -192,7 +192,7 @@ export class BackupService {
       this.logger.error('Full backup failed:', error);
       return {
         success: false,
-        errors: [error.message],
+        errors: [error instanceof Error ? error.message : String(error)],
       };
     }
   }
@@ -269,13 +269,17 @@ export class BackupService {
               recordsRestored++;
             } catch (error) {
               errors.push(
-                `Failed to restore puzzle ${puzzleData.id}: ${error.message}`,
+                `Failed to restore puzzle ${puzzleData.id}: ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
               );
             }
           }
         } catch (error) {
           errors.push(
-            `Failed to restore user ${userData.email}: ${error.message}`,
+            `Failed to restore user ${userData.email}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
           );
         }
       }
@@ -290,7 +294,7 @@ export class BackupService {
       return {
         success: false,
         recordsRestored: 0,
-        errors: [error.message],
+        errors: [error instanceof Error ? error.message : String(error)],
       };
     }
   }

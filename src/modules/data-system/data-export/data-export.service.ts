@@ -79,7 +79,7 @@ export class DataExportService {
       return {
         success: false,
         recordCount: 0,
-        errors: [error.message],
+        errors: [error instanceof Error ? error.message : String(error)],
       };
     }
   }
@@ -146,7 +146,7 @@ export class DataExportService {
       return {
         success: false,
         recordCount: 0,
-        errors: [error.message],
+        errors: [error instanceof Error ? error.message : String(error)],
       };
     }
   }
