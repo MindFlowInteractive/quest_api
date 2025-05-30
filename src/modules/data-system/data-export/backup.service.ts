@@ -43,11 +43,16 @@ export class BackupService {
     checksum: string,
     metadata: any,
   ): Promise<void> {
+    interface BackupMetadata {
+      fileName: string;
+      checksum: string;
+      [key: string]: any;
+    }
     const metadataFile = path.join(this.backupPath, 'backup_metadata.json');
-    let existingMetadata: any[] = [];
+    let existingMetadata: BackupMetadata[] = [];
     try {
-      const content = await fs.readFile(metadataFile, 'utf-8');
-      existingMetadata = JSON.parse(content);
+      const content: string = await fs.readFile(metadataFile, 'utf-8');
+      existingMetadata = JSON.parse(content) as BackupMetadata[];
     } catch {
       // No metadata file yet
     }
@@ -56,7 +61,7 @@ export class BackupService {
       fileName,
       checksum,
       ...metadata,
-    });
+    } as BackupMetadata);
 
     await fs.writeFile(metadataFile, JSON.stringify(existingMetadata, null, 2));
   }
@@ -192,7 +197,7 @@ export class BackupService {
       this.logger.error('Full backup failed:', error);
       return {
         success: false,
-        errors: [error.message],
+        errors: [error instanceof Error ? error.message : String(error)],
       };
     }
   }
@@ -269,13 +274,13 @@ export class BackupService {
               recordsRestored++;
             } catch (error) {
               errors.push(
-                `Failed to restore puzzle ${puzzleData.id}: ${error.message}`,
+                `Failed to restore puzzle ${puzzleData.id}: ${error instanceof Error ? error.message : String(error)}`,
               );
             }
           }
         } catch (error) {
           errors.push(
-            `Failed to restore user ${userData.email}: ${error.message}`,
+            `Failed to restore user ${userData.email}: ${error instanceof Error ? error.message : String(error)}`,
           );
         }
       }
@@ -290,7 +295,7 @@ export class BackupService {
       return {
         success: false,
         recordsRestored: 0,
-        errors: [error.message],
+        errors: [error instanceof Error ? error.message : String(error)],
       };
     }
   }

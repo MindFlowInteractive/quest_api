@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
@@ -81,7 +81,7 @@ export class DataImportService {
           await this.importUser(data.user, options.userId);
           result.recordsImported++;
         } catch (error) {
-          const errorMsg = `Failed to import user: ${error.message}`;
+          const errorMsg = `Failed to import user: ${error instanceof Error ? error.message : String(error)}`;
           if (options.skipErrors) {
             result.warnings.push(errorMsg);
           } else {
@@ -101,7 +101,7 @@ export class DataImportService {
             );
             result.recordsImported++;
           } catch (error) {
-            const errorMsg = `Failed to import puzzle ${puzzleData.id}: ${error.message}`;
+            const errorMsg = `Failed to import puzzle ${puzzleData.id}: ${error instanceof Error ? error.message : String(error)}`;
             if (options.skipErrors) {
               result.warnings.push(errorMsg);
             } else {
@@ -116,7 +116,9 @@ export class DataImportService {
       return result;
     } catch (error) {
       this.logger.error('Import failed:', error);
-      result.errors.push(`Import failed: ${error.message}`);
+      result.errors.push(
+        `Import failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return result;
     }
   }
@@ -225,7 +227,7 @@ export class DataImportService {
     userData: any,
     targetUserId?: string,
   ): Promise<User> {
-    let user: User;
+    let user: User | null;
 
     if (targetUserId) {
       // Update existing user
