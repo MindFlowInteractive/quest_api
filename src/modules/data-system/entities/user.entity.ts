@@ -11,13 +11,13 @@ import { Puzzle } from './puzzle.entity';
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column({ unique: true })
-  email: string;
+  email!: string;
 
   @Column()
-  name: string;
+  name!: string;
 
   @Column({ nullable: true })
   phoneNumber?: string;
@@ -26,11 +26,11 @@ export class User {
   preferences?: Record<string, any>;
 
   @OneToMany(() => Puzzle, (puzzle) => puzzle.user)
-  puzzles: Puzzle[];
+  puzzles!: Puzzle[];
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }
