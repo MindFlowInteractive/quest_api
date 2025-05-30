@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { WinstonModule } from 'nest-winston';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import * as winston from 'winston';
 
 import { AppController } from './app.controller';
@@ -15,6 +16,7 @@ import { PuzzlesModule } from './modules/puzzles/puzzles.module';
 import { AchievementsModule } from './modules/achievements/achievements.module';
 import { GameModule } from './modules/game/game.module';
 import { DataExportModule } from './modules/data-system/data-export/data-export.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -24,6 +26,23 @@ import { DataExportModule } from './modules/data-system/data-export/data-export.
       load: [configuration],
       validate,
       envFilePath: ['.env.local', '.env'],
+    }),
+
+    // Database connection with TypeORM
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        type: 'postgres',
+        host: configService.get('DB_HOST', 'localhost'),
+        port: configService.get('DB_PORT', 5432),
+        username: configService.get('DB_USERNAME', 'postgres'),
+        password: configService.get('DB_PASSWORD', 'postgres'),
+        database: configService.get('DB_DATABASE', 'quest_api'),
+        entities: [__dirname + '/**/*.entity{.ts,.js}'],
+        synchronize: configService.get('DB_SYNC', false),
+        logging: configService.get('DB_LOGGING', false),
+      }),
     }),
 
     // Rate limiting
@@ -72,6 +91,7 @@ import { DataExportModule } from './modules/data-system/data-export/data-export.
     }),
 
     // Feature modules
+    AuthModule,
     UsersModule,
     PuzzlesModule,
     AchievementsModule,
