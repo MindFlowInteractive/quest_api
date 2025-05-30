@@ -44,7 +44,7 @@ export class BackupService {
     metadata: any,
   ): Promise<void> {
 
-    // an object snap shot of the meta data and the content as an array type
+    // an object snap shot of the meta data and the other types as a list of other types
     interface BackupMetadata {
       fileName: string;
       checksum: string;
