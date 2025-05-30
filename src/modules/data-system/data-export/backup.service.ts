@@ -43,10 +43,12 @@ export class BackupService {
     checksum: string,
     metadata: any,
   ): Promise<void> {
+
+    // an object snap shot of the meta data and the content as an array type
     interface BackupMetadata {
       fileName: string;
       checksum: string;
-      [key: string]: any;
+      [others: string]: any;
     }
     const metadataFile = path.join(this.backupPath, 'backup_metadata.json');
     let existingMetadata: BackupMetadata[] = [];
