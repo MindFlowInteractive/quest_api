@@ -14,6 +14,7 @@ import { UsersModule } from './modules/users/users.module';
 import { PuzzlesModule } from './modules/puzzles/puzzles.module';
 import { AchievementsModule } from './modules/achievements/achievements.module';
 import { GameModule } from './modules/game/game.module';
+import { DataExportModule } from './modules/data-system/data-export/data-export.module';
 
 @Module({
   imports: [
@@ -75,6 +76,7 @@ import { GameModule } from './modules/game/game.module';
     PuzzlesModule,
     AchievementsModule,
     GameModule,
+    DataExportModule,
   ],
   controllers: [AppController],
   providers: [AppService],
