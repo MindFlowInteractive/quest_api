@@ -20,10 +20,8 @@ export class UsersController {
   @Post()
   @ApiOperation({ summary: 'Create a new user' })
   @ApiResponse({ status: 201, description: 'User created successfully' })
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   create(@Body() createUserDto: CreateUserDto) {
-    // TODO: Pass createUserDto to service when implemented
-    return this.usersService.create();
+    return this.usersService.create(createUserDto);
   }
 
   @Get()
@@ -37,22 +35,20 @@ export class UsersController {
   @ApiOperation({ summary: 'Get user by ID' })
   @ApiResponse({ status: 200, description: 'User retrieved successfully' })
   findOne(@Param('id') id: string) {
-    return this.usersService.findOne(+id);
+    return this.usersService.findOne(id);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update user by ID' })
   @ApiResponse({ status: 200, description: 'User updated successfully' })
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    // TODO: Pass updateUserDto to service when implemented
-    return this.usersService.update(+id);
+    return this.usersService.update(id, updateUserDto);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete user by ID' })
   @ApiResponse({ status: 200, description: 'User deleted successfully' })
   remove(@Param('id') id: string) {
-    return this.usersService.remove(+id);
+    return this.usersService.remove(id);
   }
 }

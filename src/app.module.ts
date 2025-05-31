@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { WinstonModule } from 'nest-winston';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { BullModule } from '@nestjs/bull';
 import * as winston from 'winston';
 
 import { AppController } from './app.controller';
@@ -15,6 +17,7 @@ import { PuzzlesModule } from './modules/puzzles/puzzles.module';
 import { AchievementsModule } from './modules/achievements/achievements.module';
 import { GameModule } from './modules/game/game.module';
 import { DataExportModule } from './modules/data-system/data-export/data-export.module';
+import { EmailModule } from './modules/email/email.module';
 
 @Module({
   imports: [
@@ -24,6 +27,37 @@ import { DataExportModule } from './modules/data-system/data-export/data-export.
       load: [configuration],
       validate,
       envFilePath: ['.env.local', '.env'],
+    }),
+
+    // Bull queue configuration
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        redis: {
+          host: configService.get('REDIS_HOST', 'localhost'),
+          port: configService.get('REDIS_PORT', 6379),
+        },
+      }),
+      inject: [ConfigService],
+    }),
+
+    // Database configuration
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        type: 'postgres',
+        host: configService.get('database.host'),
+        port: configService.get('database.port'),
+        username: configService.get('database.username'),
+        password: configService.get('database.password'),
+        database: configService.get('database.name'),
+        entities: [__dirname + '/**/*.entity{.ts,.js}'],
+        migrations: [__dirname + '/migrations/*{.ts,.js}'],
+        migrationsRun: true,
+        synchronize: false,
+        logging: process.env.NODE_ENV !== 'production',
+      }),
+      inject: [ConfigService],
     }),
 
     // Rate limiting
@@ -77,6 +111,7 @@ import { DataExportModule } from './modules/data-system/data-export/data-export.
     AchievementsModule,
     GameModule,
     DataExportModule,
+    EmailModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -14,7 +14,7 @@ export enum ExportFormat {
 
 export class ExportDataDto {
   @IsEnum(ExportFormat)
-  format: ExportFormat;
+  format!: ExportFormat;
 
   @IsOptional()
   @IsArray()
@@ -28,11 +28,14 @@ export class ExportDataDto {
   @IsOptional()
   @IsBoolean()
   anonymize?: boolean = false;
+
+  @IsOptional()
+  filters?: Record<string, any>;
 }
 
 export class ImportDataDto {
   @IsEnum(ExportFormat)
-  format: ExportFormat;
+  format!: ExportFormat;
 
   @IsOptional()
   @IsBoolean()
@@ -41,6 +44,9 @@ export class ImportDataDto {
   @IsOptional()
   @IsBoolean()
   skipErrors?: boolean = false;
+
+  @IsOptional()
+  options?: Record<string, any>;
 }
 
 export interface ExportResult {

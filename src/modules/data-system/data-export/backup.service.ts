@@ -188,11 +188,13 @@ export class BackupService {
         filePath,
         checksum,
       };
-    } catch (error) {
-      this.logger.error('Full backup failed:', error);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error('Full backup failed:', errorMessage);
       return {
         success: false,
-        errors: [error.message],
+        errors: [errorMessage],
       };
     }
   }
@@ -267,16 +269,24 @@ export class BackupService {
               }
 
               recordsRestored++;
-            } catch (error) {
-              errors.push(
-                `Failed to restore puzzle ${puzzleData.id}: ${error.message}`,
+            } catch (error: unknown) {
+              const errorMessage =
+                error instanceof Error ? error.message : 'Unknown error';
+              this.logger.error(
+                `Failed to restore puzzle ${puzzleData.id}: ${errorMessage}`,
+                error instanceof Error ? error.stack : undefined,
               );
+              throw error;
             }
           }
-        } catch (error) {
-          errors.push(
-            `Failed to restore user ${userData.email}: ${error.message}`,
+        } catch (error: unknown) {
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown error';
+          this.logger.error(
+            `Failed to restore user ${userData.email}: ${errorMessage}`,
+            error instanceof Error ? error.stack : undefined,
           );
+          throw error;
         }
       }
 
@@ -285,12 +295,14 @@ export class BackupService {
         recordsRestored,
         errors: errors.length > 0 ? errors : undefined,
       };
-    } catch (error) {
-      this.logger.error('Failed to restore from backup:', error);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error('Failed to restore from backup:', errorMessage);
       return {
         success: false,
         recordsRestored: 0,
-        errors: [error.message],
+        errors: [errorMessage],
       };
     }
   }
