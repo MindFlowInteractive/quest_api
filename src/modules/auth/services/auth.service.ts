@@ -1,106 +1,59 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  BadRequestException,
-  ConflictException,
-  NotFoundException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import * as bcrypt from 'bcrypt';
-import * as crypto from 'crypto';
-import { v4 as uuidv4 } from 'uuid';
-
 import { User, UserRole, AuthProvider } from '../entities/user.entity';
-import { Token, TokenType } from '../entities/token.entity';
-import { RegisterDto } from '../dto/register.dto';
-import { LoginDto } from '../dto/login.dto';
-import { ForgotPasswordDto } from '../dto/forgot-password.dto';
-import { ResetPasswordDto } from '../dto/reset-password.dto';
+import { ConfigService } from '@nestjs/config';
+import { EmailService } from '../../email/services/email.service';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
-    @InjectRepository(Token)
-    private tokenRepository: Repository<Token>,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private emailService: EmailService,
   ) {}
 
   /**
    * Register a new user
    */
-  async register(registerDto: RegisterDto): Promise<{ user: User; tokens: any }> {
-    const { email, password, passwordConfirm, username, firstName, lastName } = registerDto;
-
-    // Check if passwords match
-    if (password !== passwordConfirm) {
-      throw new BadRequestException('Passwords do not match');
-    }
-
-    // Check if user with email already exists
-    const existingUserByEmail = await this.userRepository.findOne({
+  async register(
+    email: string,
+    password: string,
+    name: string,
+  ): Promise<{ user: User; token: string }> {
+    const existingUser = await this.userRepository.findOne({
       where: { email },
     });
 
-    if (existingUserByEmail) {
-      throw new ConflictException('Email already in use');
+    if (existingUser) {
+      throw new UnauthorizedException('Email already registered');
     }
 
-    // Check if username is taken
-    const existingUserByUsername = await this.userRepository.findOne({
-      where: { username },
-    });
-
-    if (existingUserByUsername) {
-      throw new ConflictException('Username already taken');
-    }
-
-    // Create verification token
-    const verificationToken = crypto.randomBytes(32).toString('hex');
-    const verificationTokenExpiry = new Date();
-    verificationTokenExpiry.setHours(verificationTokenExpiry.getHours() + 24); // 24 hours expiry
-
-    // Create new user
     const user = this.userRepository.create({
       email,
-      password, // Will be hashed by entity hook
-      username,
-      firstName,
-      lastName,
-      roles: [UserRole.USER],
-      emailVerificationToken: verificationToken,
-      emailVerificationTokenExpiry: verificationTokenExpiry,
-      provider: AuthProvider.LOCAL,
+      password,
+      name,
+      role: UserRole.USER,
+      authProvider: AuthProvider.LOCAL,
     });
 
     await this.userRepository.save(user);
 
-    // TODO: Send verification email
-
-    // Generate tokens
-    const tokens = await this.generateTokens(user);
-
-    // Return user (without sensitive data) and tokens
-    const { password: _, ...userWithoutPassword } = user;
-    return {
-      user: userWithoutPassword as User,
-      tokens,
-    };
+    const token = this.generateToken(user);
+    return { user, token };
   }
 
   /**
    * Login a user
    */
-  async login(loginDto: LoginDto, userAgent?: string, ipAddress?: string): Promise<any> {
-    const { email, password } = loginDto;
-
-    // Find user by email
+  async login(
+    email: string,
+    password: string,
+  ): Promise<{ user: User; token: string }> {
     const user = await this.userRepository.findOne({
       where: { email },
     });
@@ -109,141 +62,53 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Check if user is active
-    if (!user.isActive) {
-      throw new ForbiddenException('Account is inactive');
-    }
-
-    // Check if user is using local authentication
-    if (user.provider !== AuthProvider.LOCAL) {
-      throw new BadRequestException(
-        `Please login using ${user.provider} authentication`,
-      );
-    }
-
-    // Check if password is correct
-    const isPasswordValid = await user.validatePassword(password);
-
+    const isPasswordValid = await bcrypt.compare(password, user.password || '');
     if (!isPasswordValid) {
-      // Increment failed login attempts
-      user.failedLoginAttempts += 1;
-      
-      // Lock account after 5 failed attempts
-      if (user.failedLoginAttempts >= 5) {
-        user.isActive = false;
-      }
-      
-      await this.userRepository.save(user);
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Reset failed login attempts and update last login
-    user.failedLoginAttempts = 0;
-    user.lastLoginAt = new Date();
-    await this.userRepository.save(user);
-
-    // Generate tokens
-    const tokens = await this.generateTokens(user, userAgent, ipAddress);
-
-    // Return user (without sensitive data) and tokens
-    const { password: _, ...userWithoutPassword } = user;
-    return {
-      user: userWithoutPassword,
-      tokens,
-    };
+    const token = this.generateToken(user);
+    return { user, token };
   }
 
   /**
    * Refresh access token using refresh token
    */
-  async refreshToken(userId: string, refreshToken: string): Promise<any> {
-    // Find user
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-    });
+  async refreshToken(token: string): Promise<{ token: string }> {
+    try {
+      const payload = this.jwtService.verify(token);
+      const user = await this.userRepository.findOne({
+        where: { id: payload.sub },
+      });
 
-    if (!user) {
-      throw new UnauthorizedException('User not found');
+      if (!user) {
+        throw new UnauthorizedException('User not found');
+      }
+
+      const newToken = this.generateToken(user);
+      return { token: newToken };
+    } catch (error: any) {
+      throw new UnauthorizedException('Invalid token', error.message);
     }
-
-    // Find token in database
-    const tokenEntity = await this.tokenRepository.findOne({
-      where: {
-        userId,
-        token: refreshToken,
-        type: TokenType.REFRESH,
-        isRevoked: false,
-      },
-    });
-
-    if (!tokenEntity) {
-      throw new UnauthorizedException('Invalid refresh token');
-    }
-
-    // Check if token is expired
-    if (new Date() > tokenEntity.expiresAt) {
-      // Revoke the token
-      tokenEntity.isRevoked = true;
-      tokenEntity.revokedAt = new Date();
-      await this.tokenRepository.save(tokenEntity);
-      
-      throw new UnauthorizedException('Refresh token expired');
-    }
-
-    // Generate new tokens
-    const tokens = await this.generateTokens(user, tokenEntity.userAgent, tokenEntity.ipAddress);
-
-    // Revoke old refresh token
-    tokenEntity.isRevoked = true;
-    tokenEntity.revokedAt = new Date();
-    await this.tokenRepository.save(tokenEntity);
-
-    return tokens;
   }
 
   /**
    * Logout a user by revoking their refresh token
    */
-  async logout(userId: string, refreshToken: string): Promise<void> {
-    // Find token in database
-    const tokenEntity = await this.tokenRepository.findOne({
-      where: {
-        userId,
-        token: refreshToken,
-        type: TokenType.REFRESH,
-        isRevoked: false,
-      },
-    });
+  async logout(token: string): Promise<void> {
+    try {
+      const payload = this.jwtService.verify(token);
+      const user = await this.userRepository.findOne({
+        where: { id: payload.sub },
+      });
 
-    if (!tokenEntity) {
-      return; // Token not found or already revoked, nothing to do
+      if (user) {
+        user.refreshToken = null;
+        await this.userRepository.save(user);
+      }
+    } catch (err: any) {
+      throw new UnauthorizedException('Invalid token', err.message);
     }
-
-    // Revoke the token
-    tokenEntity.isRevoked = true;
-    tokenEntity.revokedAt = new Date();
-    await this.tokenRepository.save(tokenEntity);
-
-    // Add access token to blacklist
-    const payload = this.jwtService.decode(refreshToken);
-    if (payload && payload.sub) {
-      const accessTokenId = payload.jti;
-      await this.blacklistToken(accessTokenId, userId);
-    }
-  }
-
-  /**
-   * Blacklist a token
-   */
-  async blacklistToken(tokenId: string, userId: string): Promise<void> {
-    const blacklistedToken = this.tokenRepository.create({
-      token: tokenId,
-      userId,
-      type: TokenType.BLACKLISTED,
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-    });
-
-    await this.tokenRepository.save(blacklistedToken);
   }
 
   /**
@@ -278,39 +143,18 @@ export class AuthService {
   /**
    * Reset password using token
    */
-  async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<void> {
-    const { token, password, passwordConfirm } = resetPasswordDto;
-
-    // Check if passwords match
-    if (password !== passwordConfirm) {
-      throw new BadRequestException('Passwords do not match');
-    }
-
-    // Find user by reset token
+  async resetPassword(token: string, newPassword: string): Promise<void> {
     const user = await this.userRepository.findOne({
       where: { passwordResetToken: token },
     });
 
     if (!user) {
-      throw new BadRequestException('Invalid or expired token');
+      throw new UnauthorizedException('Invalid reset token');
     }
 
-    // Check if token is expired
-    if (
-      !user.passwordResetTokenExpiry ||
-      new Date() > user.passwordResetTokenExpiry
-    ) {
-      throw new BadRequestException('Token expired');
-    }
-
-    // Update password and clear reset token
-    user.password = password; // Will be hashed by entity hook
+    user.password = newPassword;
     user.passwordResetToken = null;
-    user.passwordResetTokenExpiry = null;
     await this.userRepository.save(user);
-
-    // Revoke all refresh tokens for this user
-    await this.revokeAllUserTokens(user.id);
   }
 
   /**
@@ -374,13 +218,15 @@ export class AuthService {
     // If user still not found, create new user
     if (!user) {
       // Generate a unique username based on email or name
-      let username = email ? email.split('@')[0] : `user_${Math.floor(Math.random() * 10000)}`;
-      
+      let username = email
+        ? email.split('@')[0]
+        : `user_${Math.floor(Math.random() * 10000)}`;
+
       // Check if username exists and append random string if needed
       const existingUser = await this.userRepository.findOne({
         where: { username },
       });
-      
+
       if (existingUser) {
         username = `${username}_${Math.floor(Math.random() * 10000)}`;
       }
@@ -407,7 +253,7 @@ export class AuthService {
     const tokens = await this.generateTokens(user, userAgent, ipAddress);
 
     // Return user and tokens
-    const { password: _, ...userWithoutPassword } = user;
+    const { ...userWithoutPassword } = user;
     return {
       user: userWithoutPassword,
       tokens,
@@ -427,8 +273,10 @@ export class AuthService {
     const refreshTokenId = uuidv4();
 
     // Set token expiry times
-    const accessTokenExpiry = this.configService.get<number>('JWT_EXPIRY') || 15 * 60; // 15 minutes in seconds
-    const refreshTokenExpiry = this.configService.get<number>('JWT_REFRESH_EXPIRY') || 7 * 24 * 60 * 60; // 7 days in seconds
+    const accessTokenExpiry =
+      this.configService.get<number>('JWT_EXPIRY') || 15 * 60; // 15 minutes in seconds
+    const refreshTokenExpiry =
+      this.configService.get<number>('JWT_REFRESH_EXPIRY') || 7 * 24 * 60 * 60; // 7 days in seconds
 
     // Create JWT payload
     const payload = {
@@ -514,7 +362,74 @@ export class AuthService {
       return null;
     }
 
-    const { password: _, ...result } = user;
+    const { ...result } = user;
     return result;
+  }
+
+  async getProfile(userId: string): Promise<User> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    return user;
+  }
+
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const isPasswordValid = await bcrypt.compare(
+      currentPassword,
+      user.password || '',
+    );
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid current password');
+    }
+
+    user.password = newPassword;
+    await this.userRepository.save(user);
+  }
+
+  async requestPasswordReset(email: string): Promise<void> {
+    const user = await this.userRepository.findOne({
+      where: { email },
+    });
+
+    if (!user) {
+      return; // Don't reveal if email exists
+    }
+
+    const resetToken = this.generateResetToken();
+    user.passwordResetToken = resetToken;
+    await this.userRepository.save(user);
+
+    await this.emailService.sendPasswordResetEmail(email, resetToken);
+  }
+
+  private generateToken(user: User): string {
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    return this.jwtService.sign(payload);
+  }
+
+  private generateResetToken(): string {
+    return Math.random().toString(36).substring(2, 15);
   }
 }

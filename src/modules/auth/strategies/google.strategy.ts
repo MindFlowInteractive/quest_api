@@ -41,7 +41,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     done: VerifyCallback,
   ): void {
     const { name, emails, photos } = profile;
-    
+
     const user: GoogleUser = {
       email: emails[0].value,
       firstName: name.givenName,
@@ -50,7 +50,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       accessToken,
       providerId: profile.id,
     };
-    
+
     done(null, user);
   }
 }

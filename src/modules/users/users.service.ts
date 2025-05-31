@@ -1,31 +1,59 @@
-import { Injectable } from '@nestjs/common';
-// import { CreateUserDto } from './dto/create-user.dto';
-// import { UpdateUserDto } from './dto/update-user.dto';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { User } from '../data-system/entities/user.entity';
 
 @Injectable()
 export class UsersService {
-  create(/* createUserDto: CreateUserDto */) {
-    // TODO: Implement user creation logic
-    return 'This action adds a new user';
+  constructor(
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
+  ) {}
+
+  async create(createUserDto: CreateUserDto) {
+    const user = this.userRepository.create({
+      email: createUserDto.email,
+      name: createUserDto.username,
+      preferences: {
+        firstName: createUserDto.firstName,
+        lastName: createUserDto.lastName,
+      },
+    });
+    return this.userRepository.save(user);
   }
 
-  findAll() {
-    // TODO: Implement find all users logic
-    return `This action returns all users`;
+  async findAll() {
+    return this.userRepository.find();
   }
 
-  findOne(id: number) {
-    // TODO: Implement find one user logic
-    return `This action returns a #${id} user`;
+  async findOne(id: string) {
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+    return user;
   }
 
-  update(id: number /* , updateUserDto: UpdateUserDto */) {
-    // TODO: Implement user update logic
-    return `This action updates a #${id} user`;
+  async update(id: string, updateUserDto: UpdateUserDto) {
+    const user = await this.findOne(id);
+
+    if (updateUserDto.email) user.email = updateUserDto.email;
+    if (updateUserDto.username) user.name = updateUserDto.username;
+    if (updateUserDto.firstName || updateUserDto.lastName) {
+      user.preferences = {
+        ...user.preferences,
+        firstName: updateUserDto.firstName,
+        lastName: updateUserDto.lastName,
+      };
+    }
+
+    return this.userRepository.save(user);
   }
 
-  remove(id: number) {
-    // TODO: Implement user removal logic
-    return `This action removes a #${id} user`;
+  async remove(id: string) {
+    const user = await this.findOne(id);
+    return this.userRepository.remove(user);
   }
 }

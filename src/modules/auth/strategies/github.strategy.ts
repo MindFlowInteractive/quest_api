@@ -43,20 +43,20 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
   ): void {
     // GitHub profile structure is different from Google
     const { id, username, displayName, emails, photos } = profile;
-    
+
     // GitHub may not provide email directly, so we need to handle that case
     const email = emails && emails.length > 0 ? emails[0].value : null;
-    
+
     // Extract name parts if available
     let firstName: string | null = null;
     let lastName: string | null = null;
-    
+
     if (displayName) {
       const nameParts = displayName.split(' ');
       firstName = nameParts[0] || null;
       lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : null;
     }
-    
+
     const user: GithubUser = {
       email,
       username,
@@ -66,7 +66,7 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
       accessToken,
       providerId: id,
     };
-    
+
     done(null, user);
   }
 }

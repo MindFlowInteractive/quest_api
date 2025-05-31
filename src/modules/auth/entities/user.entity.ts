@@ -1,10 +1,18 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, BeforeInsert, BeforeUpdate, OneToMany } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  BeforeInsert,
+  BeforeUpdate,
+} from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { Exclude } from 'class-transformer';
 
 export enum UserRole {
   USER = 'user',
   ADMIN = 'admin',
-  MODERATOR = 'moderator',
 }
 
 export enum AuthProvider {
@@ -16,80 +24,67 @@ export enum AuthProvider {
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
-  id!: string;
+  id: string;
 
   @Column({ unique: true })
   email: string;
 
-  @Column({ nullable: true })
-  password: string;
-
-  @Column({ name: 'username', unique: true })
-  username: string;
-
-  @Column({ name: 'first_name', nullable: true })
-  firstName: string;
-
-  @Column({ name: 'last_name', nullable: true })
-  lastName: string;
-
-  @Column({ default: false })
-  isEmailVerified: boolean;
+  @Column()
+  name: string;
 
   @Column({ nullable: true })
-  emailVerificationToken: string;
-
-  @Column({ nullable: true })
-  emailVerificationTokenExpiry: Date;
-
-  @Column({ nullable: true })
-  passwordResetToken: string;
-
-  @Column({ nullable: true })
-  passwordResetTokenExpiry: Date;
+  @Exclude()
+  password?: string;
 
   @Column({
     type: 'enum',
     enum: UserRole,
     default: UserRole.USER,
-    array: true,
   })
-  roles: UserRole[];
+  role: UserRole;
 
   @Column({
     type: 'enum',
     enum: AuthProvider,
     default: AuthProvider.LOCAL,
   })
-  provider: AuthProvider;
+  authProvider: AuthProvider;
 
   @Column({ nullable: true })
-  providerId: string;
+  phoneNumber?: string;
 
-  @Column({ nullable: true })
-  refreshToken: string;
+  @Column({ type: 'jsonb', nullable: true })
+  preferences?: Record<string, unknown>;
 
   @Column({ default: true })
   isActive: boolean;
 
-  @Column({ default: 0 })
-  failedLoginAttempts: number;
+  @Column({ default: false })
+  isEmailVerified: boolean;
 
   @Column({ nullable: true })
-  lastLoginAt: Date;
+  @Exclude()
+  emailVerificationToken?: string;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @Column({ nullable: true })
+  @Exclude()
+  passwordResetToken?: string;
+
+  @Column({ nullable: true })
+  @Exclude()
+  refreshToken?: string;
+
+  @CreateDateColumn()
   createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn()
   updatedAt: Date;
 
   @BeforeInsert()
   @BeforeUpdate()
   async hashPassword() {
-    // Only hash the password if it's been modified (or is new)
-    if (this.password && this.provider === AuthProvider.LOCAL) {
-      const salt = await bcrypt.genSalt(10);
+    if (this.password) {
+      const salt = await bcrypt.genSalt();
       this.password = await bcrypt.hash(this.password, salt);
     }
   }
@@ -100,6 +95,6 @@ export class User {
 
   // Helper method to check if user has a specific role
   hasRole(role: UserRole): boolean {
-    return this.roles.includes(role);
+    return this.role === role;
   }
 }
