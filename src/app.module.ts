@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { WinstonModule } from 'nest-winston';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import * as winston from 'winston';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
@@ -14,11 +15,8 @@ import { validate } from './config/env.validation';
 import { PuzzlesModule } from './modules/puzzles/puzzles.module';
 import { AchievementsModule } from './modules/achievements/achievements.module';
 import { GameModule } from './modules/game/game.module';
-import { UserModule } from './modules/user/user.module';
-import { User } from './modules/data-system/entities/user.entity';
-import { UserActivity } from './modules/user/entities/user-activity.entity';
-import { UserPreferences } from './modules/user/entities/user-preferences.entity';
-import { UserAchievement } from './modules/user/entities/user-achievement.entity';
+import { DataExportModule } from './modules/data-system/data-export/data-export.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -40,13 +38,26 @@ import { UserAchievement } from './modules/user/entities/user-achievement.entity
         password: configService.get<string>('DB_PASSWORD'),
         database: configService.get<string>('DB_NAME'),
         entities: [
-          User,
-          UserActivity,
-          UserPreferences,
-          UserAchievement,
           __dirname + '/**/*.entity{.ts,.js}',
         ],
         synchronize: configService.get<boolean>('DB_SYNC'),
+      }),
+    }),
+
+    // Database connection with TypeORM
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        type: 'postgres',
+        host: configService.get('DB_HOST', 'localhost'),
+        port: configService.get('DB_PORT', 5432),
+        username: configService.get('DB_USERNAME', 'postgres'),
+        password: configService.get('DB_PASSWORD', 'postgres'),
+        database: configService.get('DB_DATABASE', 'quest_api'),
+        entities: [__dirname + '/**/*.entity{.ts,.js}'],
+        synchronize: configService.get('DB_SYNC', false),
+        logging: configService.get('DB_LOGGING', false),
       }),
     }),
 
@@ -96,6 +107,7 @@ import { UserAchievement } from './modules/user/entities/user-achievement.entity
     }),
 
     // Feature modules
+    AuthModule,
     PuzzlesModule,
     AchievementsModule,
     GameModule,
