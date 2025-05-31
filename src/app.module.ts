@@ -1,20 +1,24 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
+import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import configuration from './config/configuration';
 import { validate } from './config/env.validation';
 
-// Import modules
-import { UsersModule } from './modules/users/users.module';
+// Feature modules
 import { PuzzlesModule } from './modules/puzzles/puzzles.module';
 import { AchievementsModule } from './modules/achievements/achievements.module';
 import { GameModule } from './modules/game/game.module';
-import { DataExportModule } from './modules/data-system/data-export/data-export.module';
+import { UserModule } from './modules/user/user.module';
+import { User } from './modules/data-system/entities/user.entity';
+import { UserActivity } from './modules/user/entities/user-activity.entity';
+import { UserPreferences } from './modules/user/entities/user-preferences.entity';
+import { UserAchievement } from './modules/user/entities/user-achievement.entity';
 
 @Module({
   imports: [
@@ -25,12 +29,32 @@ import { DataExportModule } from './modules/data-system/data-export/data-export.
       validate,
       envFilePath: ['.env.local', '.env'],
     }),
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        type: configService.get<'postgres'>('DB_TYPE'),
+        host: configService.get<string>('DB_HOST'),
+        port: configService.get<number>('DB_PORT'),
+        username: configService.get<string>('DB_USERNAME'),
+        password: configService.get<string>('DB_PASSWORD'),
+        database: configService.get<string>('DB_NAME'),
+        entities: [
+          User,
+          UserActivity,
+          UserPreferences,
+          UserAchievement,
+          __dirname + '/**/*.entity{.ts,.js}',
+        ],
+        synchronize: configService.get<boolean>('DB_SYNC'),
+      }),
+    }),
 
     // Rate limiting
     ThrottlerModule.forRoot([
       {
-        ttl: 60000, // 1 minute
-        limit: 10, // 10 requests per minute
+        ttl: 60000,
+        limit: 10,
       },
     ]),
 
@@ -72,11 +96,10 @@ import { DataExportModule } from './modules/data-system/data-export/data-export.
     }),
 
     // Feature modules
-    UsersModule,
     PuzzlesModule,
     AchievementsModule,
     GameModule,
-    DataExportModule,
+    UserModule,
   ],
   controllers: [AppController],
   providers: [AppService],
