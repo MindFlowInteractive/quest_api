@@ -16,6 +16,8 @@ import { PuzzlesModule } from './modules/puzzles/puzzles.module';
 import { AchievementsModule } from './modules/achievements/achievements.module';
 import { GameModule } from './modules/game/game.module';
 import { DataExportModule } from './modules/data-system/data-export/data-export.module';
+import { FileUploadModule } from './modules/file-upload/file-upload.module';
+import { TutorialModule } from './modules/tutorial/tutorial.module';
 import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
@@ -111,6 +113,9 @@ import { AuthModule } from './modules/auth/auth.module';
     PuzzlesModule,
     AchievementsModule,
     GameModule,
+    DataExportModule,
+    FileUploadModule,
+    TutorialModule,
     UserModule,
   ],
   controllers: [AppController],

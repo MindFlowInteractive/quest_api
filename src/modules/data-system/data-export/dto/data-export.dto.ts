@@ -14,7 +14,7 @@ export enum ExportFormat {
 
 export class ExportDataDto {
   @IsEnum(ExportFormat)
-  format: ExportFormat;
+  format!: ExportFormat;
 
   @IsOptional()
   @IsArray()
@@ -32,7 +32,7 @@ export class ExportDataDto {
 
 export class ImportDataDto {
   @IsEnum(ExportFormat)
-  format: ExportFormat;
+  format!: ExportFormat;
 
   @IsOptional()
   @IsBoolean()
