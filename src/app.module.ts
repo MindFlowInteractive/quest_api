@@ -1,21 +1,23 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { WinstonModule } from 'nest-winston';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import * as winston from 'winston';
+import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import configuration from './config/configuration';
 import { validate } from './config/env.validation';
 
-// Import modules
-import { UsersModule } from './modules/users/users.module';
+// Feature modules
 import { PuzzlesModule } from './modules/puzzles/puzzles.module';
 import { AchievementsModule } from './modules/achievements/achievements.module';
 import { GameModule } from './modules/game/game.module';
 import { DataExportModule } from './modules/data-system/data-export/data-export.module';
 import { FileUploadModule } from './modules/file-upload/file-upload.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -26,12 +28,45 @@ import { FileUploadModule } from './modules/file-upload/file-upload.module';
       validate,
       envFilePath: ['.env.local', '.env'],
     }),
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        type: configService.get<'postgres'>('DB_TYPE'),
+        host: configService.get<string>('DB_HOST'),
+        port: configService.get<number>('DB_PORT'),
+        username: configService.get<string>('DB_USERNAME'),
+        password: configService.get<string>('DB_PASSWORD'),
+        database: configService.get<string>('DB_NAME'),
+        entities: [
+          __dirname + '/**/*.entity{.ts,.js}',
+        ],
+        synchronize: configService.get<boolean>('DB_SYNC'),
+      }),
+    }),
+
+    // Database connection with TypeORM
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        type: 'postgres',
+        host: configService.get('DB_HOST', 'localhost'),
+        port: configService.get('DB_PORT', 5432),
+        username: configService.get('DB_USERNAME', 'postgres'),
+        password: configService.get('DB_PASSWORD', 'postgres'),
+        database: configService.get('DB_DATABASE', 'quest_api'),
+        entities: [__dirname + '/**/*.entity{.ts,.js}'],
+        synchronize: configService.get('DB_SYNC', false),
+        logging: configService.get('DB_LOGGING', false),
+      }),
+    }),
 
     // Rate limiting
     ThrottlerModule.forRoot([
       {
-        ttl: 60000, // 1 minute
-        limit: 10, // 10 requests per minute
+        ttl: 60000,
+        limit: 10,
       },
     ]),
 
@@ -73,12 +108,13 @@ import { FileUploadModule } from './modules/file-upload/file-upload.module';
     }),
 
     // Feature modules
-    UsersModule,
+    AuthModule,
     PuzzlesModule,
     AchievementsModule,
     GameModule,
     DataExportModule,
     FileUploadModule,
+    UserModule,
   ],
   controllers: [AppController],
   providers: [AppService],
