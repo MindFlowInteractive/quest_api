@@ -85,14 +85,11 @@ export class DataImportService {
             options.userId,
           );
           result.recordsImported++;
-        } catch (error: unknown) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown error';
-          const errorMsg = `Failed to import user: ${errorMessage}`;
-          this.logger.error(
-            errorMsg,
-            error instanceof Error ? error.stack : undefined,
-          );
+        } catch (error) {
+          const errorMsg =
+            error instanceof Error
+              ? `Failed to import user: ${error.message}`
+              : `Failed to import user: ${String(error)}`;
           if (options.skipErrors) {
             result.warnings.push(errorMsg);
           } else {
@@ -112,14 +109,11 @@ export class DataImportService {
                 ((data.user as Record<string, unknown>)?.id as string),
             );
             result.recordsImported++;
-          } catch (error: unknown) {
-            const errorMessage =
-              error instanceof Error ? error.message : 'Unknown error';
-            const errorMsg = `Failed to import puzzle ${(puzzleData as Record<string, unknown>).id}: ${errorMessage}`;
-            this.logger.error(
-              errorMsg,
-              error instanceof Error ? error.stack : undefined,
-            );
+          } catch (error) {
+            const errorMsg =
+              error instanceof Error
+                ? `Failed to import puzzle ${puzzleData.id}: ${error.message}`
+                : `Failed to import puzzle ${puzzleData.id}: ${String(error)}`;
             if (options.skipErrors) {
               result.warnings.push(errorMsg);
             } else {
@@ -132,10 +126,13 @@ export class DataImportService {
 
       result.success = result.errors.length === 0;
       return result;
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      result.errors.push(`Import failed: ${errorMessage}`);
+    } catch (error) {
+      this.logger.error('Import failed:', error);
+      const errorMsg =
+        error instanceof Error
+          ? `Import failed: ${error.message}`
+          : `Import failed: ${String(error)}`;
+      result.errors.push(errorMsg);
       return result;
     }
   }
@@ -266,16 +263,22 @@ export class DataImportService {
       });
 
       if (!user) {
-        throw new Error(`User not found: ${userData.email}`);
+        user = this.userRepository.create({
+          email: userData.email,
+          name: userData.name,
+          phoneNumber: userData.phoneNumber,
+          preferences: userData.preferences,
+        });
+      } else {
+        // Update existing user
+        user.name = userData.name || user.name;
+        user.phoneNumber = userData.phoneNumber || user.phoneNumber;
+        user.preferences = userData.preferences || user.preferences;
       }
-
-      user.name = (userData.name as string) || user.name;
-      user.phoneNumber = (userData.phoneNumber as string) || user.phoneNumber;
-      user.preferences =
-        (userData.preferences as Record<string, unknown>) || user.preferences;
     }
 
-    return this.userRepository.save(user);
+    // TypeScript: user is User here, not null
+    return this.userRepository.save(user as User);
   }
 
   private async importPuzzle(

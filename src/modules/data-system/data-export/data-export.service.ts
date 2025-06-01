@@ -74,14 +74,13 @@ export class DataExportService {
         checksum,
         recordCount: this.countRecords(data),
       };
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(
-        `Failed to export data: ${errorMessage}`,
-        error instanceof Error ? error.stack : undefined,
-      );
-      throw new Error(`Failed to export data: ${errorMessage}`);
+    } catch (error) {
+      this.logger.error(`Export failed for user ${userId}:`, error);
+      return {
+        success: false,
+        recordCount: 0,
+        errors: [error instanceof Error ? error.message : String(error)],
+      };
     }
   }
 
@@ -142,14 +141,13 @@ export class DataExportService {
         checksum,
         recordCount: 1,
       };
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(
-        `Failed to export puzzles: ${errorMessage}`,
-        error instanceof Error ? error.stack : undefined,
-      );
-      throw new Error(`Failed to export puzzles: ${errorMessage}`);
+    } catch (error) {
+      this.logger.error(`Puzzle export failed for ${puzzleId}:`, error);
+      return {
+        success: false,
+        recordCount: 0,
+        errors: [error instanceof Error ? error.message : String(error)],
+      };
     }
   }
 

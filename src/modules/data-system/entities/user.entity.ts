@@ -19,15 +19,6 @@ export class User {
   @Column()
   name!: string;
 
-  @Column({ select: false })
-  password!: string;
-
-  @Column({ default: false })
-  isAdmin!: boolean;
-
-  @Column({ default: true })
-  isActive!: boolean;
-
   @Column({ nullable: true })
   phoneNumber?: string;
 

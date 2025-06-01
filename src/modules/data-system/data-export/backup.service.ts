@@ -194,7 +194,7 @@ export class BackupService {
       this.logger.error('Full backup failed:', errorMessage);
       return {
         success: false,
-        errors: [errorMessage],
+        errors: [error instanceof Error ? error.message : String(error)],
       };
     }
   }
@@ -269,22 +269,20 @@ export class BackupService {
               }
 
               recordsRestored++;
-            } catch (error: unknown) {
-              const errorMessage =
-                error instanceof Error ? error.message : 'Unknown error';
-              this.logger.error(
-                `Failed to restore puzzle ${puzzleData.id}: ${errorMessage}`,
-                error instanceof Error ? error.stack : undefined,
+            } catch (error) {
+              errors.push(
+                `Failed to restore puzzle ${puzzleData.id}: ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
               );
               throw error;
             }
           }
-        } catch (error: unknown) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown error';
-          this.logger.error(
-            `Failed to restore user ${userData.email}: ${errorMessage}`,
-            error instanceof Error ? error.stack : undefined,
+        } catch (error) {
+          errors.push(
+            `Failed to restore user ${userData.email}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
           );
           throw error;
         }
@@ -302,7 +300,7 @@ export class BackupService {
       return {
         success: false,
         recordsRestored: 0,
-        errors: [errorMessage],
+        errors: [error instanceof Error ? error.message : String(error)],
       };
     }
   }
