@@ -3,9 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { WinstonModule } from 'nest-winston';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { BullModule } from '@nestjs/bull';
 import * as winston from 'winston';
-import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -20,6 +18,8 @@ import { DataExportModule } from './modules/data-system/data-export/data-export.
 import { FileUploadModule } from './modules/file-upload/file-upload.module';
 import { TutorialModule } from './modules/tutorial/tutorial.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { UserModule } from './modules/user/user.module';
+
 
 @Module({
   imports: [
@@ -29,20 +29,6 @@ import { AuthModule } from './modules/auth/auth.module';
       load: [configuration],
       validate,
       envFilePath: ['.env.local', '.env'],
-    }),
-    TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: configService.get<'postgres'>('DB_TYPE'),
-        host: configService.get<string>('DB_HOST'),
-        port: configService.get<number>('DB_PORT'),
-        username: configService.get<string>('DB_USERNAME'),
-        password: configService.get<string>('DB_PASSWORD'),
-        database: configService.get<string>('DB_NAME'),
-        entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: configService.get<boolean>('DB_SYNC'),
-      }),
     }),
 
     // Database connection with TypeORM
@@ -62,7 +48,6 @@ import { AuthModule } from './modules/auth/auth.module';
         synchronize: false,
         logging: process.env.NODE_ENV !== 'production',
       }),
-      inject: [ConfigService],
     }),
 
     // Rate limiting
@@ -112,13 +97,13 @@ import { AuthModule } from './modules/auth/auth.module';
 
     // Feature modules
     AuthModule,
+    UserModule,
     PuzzlesModule,
     AchievementsModule,
     GameModule,
     DataExportModule,
     FileUploadModule,
     TutorialModule,
-    UserModule,
   ],
   controllers: [AppController],
   providers: [AppService],

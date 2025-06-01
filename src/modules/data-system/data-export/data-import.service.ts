@@ -1,20 +1,30 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from '../entities/user.entity';
+import { User, UserRole, AuthProvider } from '../../../modules/auth/entities/user.entity';
 import { Puzzle } from '../entities/puzzle.entity';
 import { ExportFormat } from './dto/data-export.dto';
 import * as fs from 'fs/promises';
-import * as csv from 'csv-parser';
+import { parse } from 'csv-parse';
 import * as xml2js from 'xml2js';
 import { Readable } from 'stream';
 
 export interface ImportResult {
   success: boolean;
-  recordsProcessed: number;
-  recordsImported: number;
-  errors: string[];
-  warnings: string[];
+  message: string;
+  data: {
+    errors: string[];
+    warnings: string[];
+    recordsProcessed: number;
+    recordsImported: number;
+  };
+}
+
+interface ImportedUser {
+  email: string;
+  name: string;
+  phoneNumber?: string;
+  preferences?: Record<string, unknown>;
 }
 
 @Injectable()
@@ -39,10 +49,13 @@ export class DataImportService {
   ): Promise<ImportResult> {
     const result: ImportResult = {
       success: false,
-      recordsProcessed: 0,
-      recordsImported: 0,
-      errors: [],
-      warnings: [],
+      message: '',
+      data: {
+        errors: [],
+        warnings: [],
+        recordsProcessed: 0,
+        recordsImported: 0,
+      },
     };
 
     try {
@@ -54,26 +67,30 @@ export class DataImportService {
           data = JSON.parse(content) as Record<string, unknown>;
           break;
         case ExportFormat.CSV:
-          data = await this.parseCSV(content);
+          const csvUsers = await this.parseCSV(content);
+          data = { users: csvUsers };
           break;
         case ExportFormat.XML:
-          data = await this.parseXML(content);
+          const xmlUsers = await this.parseXML(content);
+          data = { users: xmlUsers };
           break;
         default:
           throw new Error(`Unsupported format: ${format}`);
       }
 
       const validationResult = this.validateImportData(data);
-      result.errors.push(...validationResult.errors);
-      result.warnings.push(...validationResult.warnings);
+      result.data.errors = validationResult.errors;
+      result.data.warnings = validationResult.warnings;
 
       if (options.validateOnly) {
         result.success = validationResult.errors.length === 0;
+        result.message = validationResult.errors.length === 0 ? 'Validation successful' : 'Validation failed';
         return result;
       }
 
       if (validationResult.errors.length > 0 && !options.skipErrors) {
         result.success = false;
+        result.message = 'Validation failed';
         return result;
       }
 
@@ -84,19 +101,19 @@ export class DataImportService {
             data.user as Record<string, unknown>,
             options.userId,
           );
-          result.recordsImported++;
+          result.data.recordsImported = 1;
         } catch (error) {
           const errorMsg =
             error instanceof Error
               ? `Failed to import user: ${error.message}`
               : `Failed to import user: ${String(error)}`;
           if (options.skipErrors) {
-            result.warnings.push(errorMsg);
+            result.data.warnings = [...(result.data.warnings || []), errorMsg];
           } else {
-            result.errors.push(errorMsg);
+            result.data.errors = [...(result.data.errors || []), errorMsg];
           }
         }
-        result.recordsProcessed++;
+        result.data.recordsProcessed = 1;
       }
 
       // Import puzzles data
@@ -108,23 +125,24 @@ export class DataImportService {
               options.userId ||
                 ((data.user as Record<string, unknown>)?.id as string),
             );
-            result.recordsImported++;
+            result.data.recordsImported = (result.data.recordsImported || 0) + 1;
           } catch (error) {
             const errorMsg =
               error instanceof Error
                 ? `Failed to import puzzle ${puzzleData.id}: ${error.message}`
                 : `Failed to import puzzle ${puzzleData.id}: ${String(error)}`;
             if (options.skipErrors) {
-              result.warnings.push(errorMsg);
+              result.data.warnings = [...(result.data.warnings || []), errorMsg];
             } else {
-              result.errors.push(errorMsg);
+              result.data.errors = [...(result.data.errors || []), errorMsg];
             }
           }
-          result.recordsProcessed++;
+          result.data.recordsProcessed = (result.data.recordsProcessed || 0) + 1;
         }
       }
 
-      result.success = result.errors.length === 0;
+      result.success = result.data.errors.length === 0;
+      result.message = result.success ? 'Import successful' : 'Import failed';
       return result;
     } catch (error) {
       this.logger.error('Import failed:', error);
@@ -132,30 +150,39 @@ export class DataImportService {
         error instanceof Error
           ? `Import failed: ${error.message}`
           : `Import failed: ${String(error)}`;
-      result.errors.push(errorMsg);
+      result.data.errors = [errorMsg];
+      result.success = false;
+      result.message = 'Import failed';
       return result;
     }
   }
 
-  private async parseCSV(content: string): Promise<Record<string, unknown>> {
+  private async parseCSV(content: string): Promise<ImportedUser[]> {
     return new Promise((resolve, reject) => {
-      const results: Record<string, unknown>[] = [];
-      const stream = Readable.from([content]);
-
-      stream
-        .pipe(csv())
-        .on('data', (data: Record<string, unknown>) => results.push(data))
-        .on('end', () => {
-          const restructured = this.restructureFromCSV(results[0]);
-          resolve(restructured);
-        })
-        .on('error', reject);
+      parse(content, { columns: true, skip_empty_lines: true }, (err: Error | undefined, records: any[]) => {
+        if (err) return reject(err);
+        resolve(records.map((record: Record<string, string>) => ({
+          email: record.email,
+          name: record.name,
+          phoneNumber: record.phoneNumber,
+          preferences: record.preferences ? JSON.parse(record.preferences) : undefined,
+        })));
+      });
     });
   }
 
-  private async parseXML(content: string): Promise<Record<string, unknown>> {
-    const parser = new xml2js.Parser();
-    return parser.parseStringPromise(content);
+  private async parseXML(content: string): Promise<ImportedUser[]> {
+    const parser = new xml2js.Parser({ explicitArray: false });
+    const result = await parser.parseStringPromise(content);
+    const users = Array.isArray(result.users.user)
+      ? result.users.user
+      : [result.users.user];
+    return users.map((user: Record<string, string>) => ({
+      email: user.email,
+      name: user.name,
+      phoneNumber: user.phoneNumber,
+      preferences: user.preferences ? JSON.parse(user.preferences) : undefined,
+    }));
   }
 
   private restructureFromCSV(
@@ -253,31 +280,24 @@ export class DataImportService {
         throw new Error(`User not found: ${targetUserId}`);
       }
 
-      user.name = (userData.name as string) || user.name;
+      user.firstName = (userData.name as string) || user.firstName;
       user.phoneNumber = (userData.phoneNumber as string) || user.phoneNumber;
       user.preferences =
         (userData.preferences as Record<string, unknown>) || user.preferences;
     } else {
-      user = await this.userRepository.findOne({
-        where: { email: userData.email as string },
+      user = this.userRepository.create({
+        email: userData.email as string,
+        username: (userData.email as string).split('@')[0], // Generate username from email
+        password: 'changeme123!', // Default password that should be changed
+        firstName: userData.name as string,
+        lastName: '',
+        role: UserRole.USER,
+        provider: AuthProvider.LOCAL,
+        isEmailVerified: true,
+        isActive: true,
       });
-
-      if (!user) {
-        user = this.userRepository.create({
-          email: userData.email,
-          name: userData.name,
-          phoneNumber: userData.phoneNumber,
-          preferences: userData.preferences,
-        });
-      } else {
-        // Update existing user
-        user.name = userData.name || user.name;
-        user.phoneNumber = userData.phoneNumber || user.phoneNumber;
-        user.preferences = userData.preferences || user.preferences;
-      }
     }
 
-    // TypeScript: user is User here, not null
     return this.userRepository.save(user);
   }
 
@@ -329,5 +349,87 @@ export class DataImportService {
     format: ExportFormat,
   ): Promise<ImportResult> {
     return this.importData(filePath, format, { validateOnly: true });
+  }
+
+  async importUsers(file: Express.Multer.File): Promise<ImportResult> {
+    try {
+      const fileContent = file.buffer.toString();
+      const fileType = file.mimetype;
+
+      let users: ImportedUser[] = [];
+
+      if (fileType === 'text/csv') {
+        users = await this.parseCSV(fileContent);
+      } else if (fileType === 'application/json') {
+        users = JSON.parse(fileContent);
+      } else if (fileType === 'application/xml') {
+        users = await this.parseXML(fileContent);
+      } else {
+        throw new Error('Unsupported file type');
+      }
+
+      const result: ImportResult = {
+        success: true,
+        message: '',
+        data: {
+          errors: [],
+          warnings: [],
+          recordsProcessed: 0,
+          recordsImported: 0,
+        },
+      };
+
+      for (const userData of users) {
+        result.data.recordsProcessed++;
+        try {
+          const existingUser = await this.userRepository.findOne({
+            where: { email: userData.email },
+          });
+
+          if (existingUser) {
+            existingUser.firstName = userData.name;
+            existingUser.phoneNumber = userData.phoneNumber;
+            existingUser.preferences = userData.preferences;
+            await this.userRepository.save(existingUser);
+          } else {
+            const user = this.userRepository.create({
+              email: userData.email,
+              username: userData.email.split('@')[0],
+              password: 'changeme123!',
+              firstName: userData.name,
+              lastName: '',
+              role: UserRole.USER,
+              provider: AuthProvider.LOCAL,
+              isEmailVerified: true,
+              isActive: true,
+            });
+
+            await this.userRepository.save(user);
+          }
+          result.data.recordsImported++;
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          result.data.errors.push(`Failed to import user ${userData.email}: ${errorMsg}`);
+        }
+      }
+
+      result.success = result.data.errors.length === 0;
+      result.message = result.success
+        ? `Successfully imported ${result.data.recordsImported} users`
+        : `Import completed with ${result.data.errors.length} errors`;
+
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : String(error),
+        data: {
+          errors: [error instanceof Error ? error.message : String(error)],
+          warnings: [],
+          recordsProcessed: 0,
+          recordsImported: 0,
+        },
+      };
+    }
   }
 }

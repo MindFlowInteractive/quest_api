@@ -29,12 +29,18 @@ export class User {
   @Column({ unique: true })
   email: string;
 
+  @Column({ nullable: true })
+  username?: string;
+
   @Column()
-  name: string;
+  @Exclude()
+  password: string;
 
   @Column({ nullable: true })
-  @Exclude()
-  password?: string;
+  firstName?: string;
+
+  @Column({ nullable: true })
+  lastName?: string;
 
   @Column({
     type: 'enum',
@@ -48,13 +54,10 @@ export class User {
     enum: AuthProvider,
     default: AuthProvider.LOCAL,
   })
-  authProvider: AuthProvider;
+  provider: AuthProvider;
 
   @Column({ nullable: true })
-  phoneNumber?: string;
-
-  @Column({ type: 'jsonb', nullable: true })
-  preferences?: Record<string, unknown>;
+  providerId?: string;
 
   @Column({ default: true })
   isActive: boolean;
@@ -63,16 +66,28 @@ export class User {
   isEmailVerified: boolean;
 
   @Column({ nullable: true })
-  @Exclude()
   emailVerificationToken?: string;
 
-  @Column({ nullable: true })
-  @Exclude()
-  passwordResetToken?: string;
+  @Column({ type: 'timestamp', nullable: true })
+  emailVerificationTokenExpiry?: Date;
 
   @Column({ nullable: true })
-  @Exclude()
+  passwordResetToken?: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  passwordResetTokenExpiry?: Date;
+
+  @Column({ nullable: true })
   refreshToken?: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  lastLoginAt?: Date;
+
+  @Column({ nullable: true })
+  phoneNumber?: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  preferences?: Record<string, unknown>;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -90,6 +105,7 @@ export class User {
   }
 
   async validatePassword(password: string): Promise<boolean> {
+    if (!this.password) return false;
     return bcrypt.compare(password, this.password);
   }
 

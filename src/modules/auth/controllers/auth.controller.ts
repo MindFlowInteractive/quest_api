@@ -8,22 +8,32 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Res,
+  Request,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { Request, Response } from 'express';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { RolesGuard } from '../guards/roles.guard';
 import { Roles } from '../decorators/roles.decorator';
-import { UserRole } from '../entities/user.entity';
-
+import { UserRole, AuthProvider, User } from '../entities/user.entity';
 import { AuthService } from '../services/auth.service';
 import { ForgotPasswordDto } from '../dto/forgot-password.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { Public } from '../decorators/public.decorator';
+import { LocalAuthGuard } from '../guards/local-auth.guard';
+
+interface RequestWithUser extends Omit<Request, 'body'> {
+  user: User;
+  body: {
+    refreshToken?: string;
+    [key: string]: any;
+  };
+}
 
 @ApiTags('auth')
-@Controller('api/v1/auth')
+@Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
@@ -37,45 +47,46 @@ export class AuthController {
     return this.authService.register(email, password, name);
   }
 
+  @UseGuards(LocalAuthGuard)
   @Post('login')
   @ApiOperation({ summary: 'Login user' })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @HttpCode(HttpStatus.OK)
-  async login(@Body() loginData: { email: string; password: string }) {
-    const { email, password } = loginData;
-    return this.authService.login(email, password);
+  async login(@Req() req: RequestWithUser) {
+    return this.authService.generateTokens(req.user);
   }
 
-  @Post('refresh')
-  @ApiOperation({ summary: 'Refresh access token' })
-  @ApiResponse({ status: 200, description: 'Token refreshed successfully' })
   @UseGuards(JwtAuthGuard)
-  async refreshToken(@Req() request: Request) {
-    const token = request.headers.authorization?.split(' ')[1];
-    if (!token) {
-      throw new Error('No refresh token provided');
-    }
-    return this.authService.refreshToken(token);
-  }
-
   @Post('logout')
   @ApiOperation({ summary: 'Logout user' })
   @ApiResponse({ status: 200, description: 'Logout successful' })
-  @UseGuards(JwtAuthGuard)
-  async logout(@Req() request: Request) {
-    const token = request.headers.authorization?.split(' ')[1];
-    if (!token) {
-      throw new Error('No token provided');
+  async logout(@Req() req: RequestWithUser) {
+    const userId = req.user?.id;
+    if (userId) {
+      await this.authService.logout(userId);
     }
-    return this.authService.logout(token);
+    return { message: 'Logged out successfully' };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('refresh')
+  @ApiOperation({ summary: 'Refresh access token' })
+  @ApiResponse({ status: 200, description: 'Token refreshed successfully' })
+  async refresh(@Req() req: RequestWithUser) {
+    const userId = req.user?.id;
+    const refreshToken = req.body?.refreshToken;
+    if (!userId || !refreshToken) {
+      throw new Error('Invalid refresh token');
+    }
+    return this.authService.refreshTokens(userId, refreshToken);
   }
 
   @Get('profile')
   @ApiOperation({ summary: 'Get user profile' })
   @ApiResponse({ status: 200, description: 'Profile retrieved successfully' })
   @UseGuards(JwtAuthGuard)
-  async getProfile(@Req() request: Request) {
-    const userId = request.user?.id;
+  async getProfile(@Req() req: RequestWithUser) {
+    const userId = req.user?.id;
     if (!userId) {
       throw new Error('User not found in request');
     }
@@ -88,9 +99,9 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async changePassword(
     @Body() data: { currentPassword: string; newPassword: string },
-    @Req() request: Request,
+    @Req() req: RequestWithUser,
   ) {
-    const userId = request.user?.id;
+    const userId = req.user?.id;
     if (!userId) {
       throw new Error('User not found in request');
     }
@@ -111,8 +122,12 @@ export class AuthController {
   @Post('reset-password')
   @ApiOperation({ summary: 'Reset password' })
   @ApiResponse({ status: 200, description: 'Password reset successful' })
-  async resetPassword(@Body() data: { token: string; newPassword: string }) {
-    return this.authService.resetPassword(data.token, data.newPassword);
+  async resetPassword(
+    @Body('token') token: string,
+    @Body('newPassword') newPassword: string,
+  ) {
+    await this.authService.resetPassword(token, newPassword);
+    return { message: 'Password reset successful' };
   }
 
   @Get('admin')
@@ -124,93 +139,47 @@ export class AuthController {
     return { message: 'Admin access granted' };
   }
 
-  @Public()
   @Post('forgot-password')
-  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request password reset' })
   @ApiResponse({ status: 200, description: 'Password reset email sent' })
-  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
-    await this.authService.forgotPassword(forgotPasswordDto);
-    return { message: 'Password reset instructions sent to your email' };
+  async forgotPassword(@Body('email') email: string) {
+    await this.authService.forgotPassword(email);
+    return { message: 'Password reset email sent' };
   }
 
   @Public()
-  @Post('reset-password')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Reset password using token' })
-  @ApiResponse({ status: 200, description: 'Password reset successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid token or passwords' })
-  async resetPasswordDto(@Body() resetPasswordDto: ResetPasswordDto) {
-    await this.authService.resetPassword(resetPasswordDto);
-    return { message: 'Password reset successfully' };
-  }
-
-  @Public()
-  @Get('verify-email/:token')
-  @ApiOperation({ summary: 'Verify email using token' })
-  @ApiResponse({ status: 200, description: 'Email verified successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid verification token' })
-  async verifyEmail(@Param('token') token: string) {
-    await this.authService.verifyEmail(token);
-    return { message: 'Email verified successfully' };
-  }
-
-  // OAuth routes
-  @Public()
-  @Get('google')
-  @UseGuards(AuthGuard('google'))
+  @Post('google')
   @ApiOperation({ summary: 'Initiate Google OAuth login' })
   async googleAuth() {
-    // This route will redirect to Google OAuth
+    return { message: 'Google auth endpoint' };
   }
 
   @Public()
-  @Get('google/callback')
-  @UseGuards(AuthGuard('google'))
+  @Post('google/callback')
   @ApiOperation({ summary: 'Google OAuth callback' })
-  async googleAuthCallback(@Req() req: Request, @Res() res: Response) {
-    const userAgent = req.headers['user-agent'];
-    const ipAddress = req.ip;
-
-    const { tokens } = await this.authService.oauthLogin(
-      AuthProvider.GOOGLE,
+  async googleAuthCallback(@Req() req: RequestWithUser, @Res() res: Response) {
+    const result = await this.authService.validateOAuthLogin(
       req.user,
-      userAgent,
-      ipAddress,
+      AuthProvider.GOOGLE,
     );
-
-    // Redirect to frontend with tokens
-    const redirectUrl = `${this.authService['configService'].get<string>('FRONTEND_URL')}/auth/oauth-callback?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`;
-
-    return res.redirect(redirectUrl);
+    res.redirect(`/auth/callback?token=${result.accessToken}`);
   }
 
   @Public()
-  @Get('github')
-  @UseGuards(AuthGuard('github'))
+  @Post('github')
   @ApiOperation({ summary: 'Initiate GitHub OAuth login' })
   async githubAuth() {
-    // This route will redirect to GitHub OAuth
+    return { message: 'GitHub auth endpoint' };
   }
 
   @Public()
-  @Get('github/callback')
-  @UseGuards(AuthGuard('github'))
+  @Post('github/callback')
   @ApiOperation({ summary: 'GitHub OAuth callback' })
-  async githubAuthCallback(@Req() req: Request, @Res() res: Response) {
-    const userAgent = req.headers['user-agent'];
-    const ipAddress = req.ip;
-
-    const { tokens } = await this.authService.oauthLogin(
-      AuthProvider.GITHUB,
+  async githubAuthCallback(@Req() req: RequestWithUser, @Res() res: Response) {
+    const result = await this.authService.validateOAuthLogin(
       req.user,
-      userAgent,
-      ipAddress,
+      AuthProvider.GITHUB,
     );
-
-    // Redirect to frontend with tokens
-    const redirectUrl = `${this.authService['configService'].get<string>('FRONTEND_URL')}/auth/oauth-callback?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`;
-
-    return res.redirect(redirectUrl);
+    res.redirect(`/auth/callback?token=${result.accessToken}`);
   }
 }

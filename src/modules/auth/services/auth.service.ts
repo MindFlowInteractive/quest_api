@@ -1,17 +1,22 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserRole, AuthProvider } from '../entities/user.entity';
+import { Token, TokenType } from '../entities/token.entity';
 import { ConfigService } from '@nestjs/config';
 import { EmailService } from '../../email/services/email.service';
 import * as bcrypt from 'bcrypt';
+import { v4 as uuidv4 } from 'uuid';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(Token)
+    private tokenRepository: Repository<Token>,
     private jwtService: JwtService,
     private configService: ConfigService,
     private emailService: EmailService,
@@ -36,9 +41,9 @@ export class AuthService {
     const user = this.userRepository.create({
       email,
       password,
-      name,
+      firstName: name,
       role: UserRole.USER,
-      authProvider: AuthProvider.LOCAL,
+      provider: AuthProvider.LOCAL,
     });
 
     await this.userRepository.save(user);
@@ -95,49 +100,32 @@ export class AuthService {
   /**
    * Logout a user by revoking their refresh token
    */
-  async logout(token: string): Promise<void> {
-    try {
-      const payload = this.jwtService.verify(token);
-      const user = await this.userRepository.findOne({
-        where: { id: payload.sub },
-      });
+  async logout(userId: string): Promise<void> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
 
-      if (user) {
-        user.refreshToken = null;
-        await this.userRepository.save(user);
-      }
-    } catch (err: any) {
-      throw new UnauthorizedException('Invalid token', err.message);
+    if (user) {
+      user.refreshToken = undefined;
+      await this.userRepository.save(user);
     }
   }
 
   /**
    * Initiate password reset process
    */
-  async forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<void> {
-    const { email } = forgotPasswordDto;
-
-    // Find user by email
-    const user = await this.userRepository.findOne({
-      where: { email },
-    });
-
-    // Don't reveal if user exists or not for security
+  async forgotPassword(email: string): Promise<void> {
+    const user = await this.userRepository.findOne({ where: { email } });
     if (!user || user.provider !== AuthProvider.LOCAL) {
       return;
     }
 
-    // Generate reset token
     const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenExpiry = new Date();
-    resetTokenExpiry.setHours(resetTokenExpiry.getHours() + 1); // 1 hour expiry
+    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour
 
-    // Save reset token to user
     user.passwordResetToken = resetToken;
     user.passwordResetTokenExpiry = resetTokenExpiry;
     await this.userRepository.save(user);
-
-    // TODO: Send password reset email
   }
 
   /**
@@ -148,12 +136,13 @@ export class AuthService {
       where: { passwordResetToken: token },
     });
 
-    if (!user) {
-      throw new UnauthorizedException('Invalid reset token');
+    if (!user || !user.passwordResetTokenExpiry || new Date() > user.passwordResetTokenExpiry) {
+      throw new BadRequestException('Invalid or expired reset token');
     }
 
     user.password = newPassword;
-    user.passwordResetToken = null;
+    user.passwordResetToken = undefined;
+    user.passwordResetTokenExpiry = undefined;
     await this.userRepository.save(user);
   }
 
@@ -161,7 +150,6 @@ export class AuthService {
    * Verify email using token
    */
   async verifyEmail(token: string): Promise<void> {
-    // Find user by verification token
     const user = await this.userRepository.findOne({
       where: { emailVerificationToken: token },
     });
@@ -170,7 +158,6 @@ export class AuthService {
       throw new BadRequestException('Invalid verification token');
     }
 
-    // Check if token is expired
     if (
       !user.emailVerificationTokenExpiry ||
       new Date() > user.emailVerificationTokenExpiry
@@ -178,10 +165,9 @@ export class AuthService {
       throw new BadRequestException('Verification token expired');
     }
 
-    // Mark email as verified and clear verification token
     user.isEmailVerified = true;
-    user.emailVerificationToken = null;
-    user.emailVerificationTokenExpiry = null;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationTokenExpiry = undefined;
     await this.userRepository.save(user);
   }
 
@@ -196,18 +182,15 @@ export class AuthService {
   ): Promise<any> {
     const { email, providerId, firstName, lastName } = profile;
 
-    // Check if user exists by provider ID
     let user = await this.userRepository.findOne({
       where: { provider, providerId },
     });
 
-    // If not found by provider ID, try to find by email
     if (!user && email) {
       user = await this.userRepository.findOne({
         where: { email },
       });
 
-      // If user exists but with different provider, link accounts
       if (user) {
         user.provider = provider;
         user.providerId = providerId;
@@ -215,14 +198,11 @@ export class AuthService {
       }
     }
 
-    // If user still not found, create new user
     if (!user) {
-      // Generate a unique username based on email or name
       let username = email
         ? email.split('@')[0]
         : `user_${Math.floor(Math.random() * 10000)}`;
 
-      // Check if username exists and append random string if needed
       const existingUser = await this.userRepository.findOne({
         where: { username },
       });
@@ -238,22 +218,19 @@ export class AuthService {
         lastName,
         provider,
         providerId,
-        isEmailVerified: true, // OAuth emails are verified by the provider
-        roles: [UserRole.USER],
+        isEmailVerified: true,
+        role: UserRole.USER,
       });
 
       await this.userRepository.save(user);
     }
 
-    // Update last login
     user.lastLoginAt = new Date();
     await this.userRepository.save(user);
 
-    // Generate tokens
     const tokens = await this.generateTokens(user, userAgent, ipAddress);
 
-    // Return user and tokens
-    const { ...userWithoutPassword } = user;
+    const { password, ...userWithoutPassword } = user;
     return {
       user: userWithoutPassword,
       tokens,
@@ -268,25 +245,21 @@ export class AuthService {
     userAgent?: string,
     ipAddress?: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
-    // Generate unique token IDs
     const accessTokenId = uuidv4();
     const refreshTokenId = uuidv4();
 
-    // Set token expiry times
     const accessTokenExpiry =
-      this.configService.get<number>('JWT_EXPIRY') || 15 * 60; // 15 minutes in seconds
+      this.configService.get<number>('JWT_EXPIRY') || 15 * 60;
     const refreshTokenExpiry =
-      this.configService.get<number>('JWT_REFRESH_EXPIRY') || 7 * 24 * 60 * 60; // 7 days in seconds
+      this.configService.get<number>('JWT_REFRESH_EXPIRY') || 7 * 24 * 60 * 60;
 
-    // Create JWT payload
     const payload = {
       sub: user.id,
       email: user.email,
       username: user.username,
-      roles: user.roles,
+      role: user.role,
     };
 
-    // Generate access token
     const accessToken = this.jwtService.sign(
       { ...payload, jti: accessTokenId },
       {
@@ -295,7 +268,6 @@ export class AuthService {
       },
     );
 
-    // Generate refresh token
     const refreshToken = this.jwtService.sign(
       { ...payload, jti: refreshTokenId },
       {
@@ -304,7 +276,6 @@ export class AuthService {
       },
     );
 
-    // Save refresh token to database
     const tokenEntity = this.tokenRepository.create({
       token: refreshToken,
       type: TokenType.REFRESH,
@@ -326,7 +297,6 @@ export class AuthService {
    * Revoke all tokens for a user
    */
   async revokeAllUserTokens(userId: string): Promise<void> {
-    // Find all active refresh tokens for user
     const tokens = await this.tokenRepository.find({
       where: {
         userId,
@@ -335,7 +305,6 @@ export class AuthService {
       },
     });
 
-    // Revoke all tokens
     for (const token of tokens) {
       token.isRevoked = true;
       token.revokedAt = new Date();
@@ -348,22 +317,12 @@ export class AuthService {
    * Validate user by email and password (used by local strategy)
    */
   async validateUser(email: string, password: string): Promise<any> {
-    const user = await this.userRepository.findOne({
-      where: { email },
-    });
-
-    if (!user) {
-      return null;
+    const user = await this.userRepository.findOne({ where: { email } });
+    if (user && (await user.validatePassword(password))) {
+      const { password, ...result } = user;
+      return result;
     }
-
-    const isPasswordValid = await user.validatePassword(password);
-
-    if (!isPasswordValid) {
-      return null;
-    }
-
-    const { ...result } = user;
-    return result;
+    return null;
   }
 
   async getProfile(userId: string): Promise<User> {
@@ -409,7 +368,7 @@ export class AuthService {
     });
 
     if (!user) {
-      return; // Don't reveal if email exists
+      return;
     }
 
     const resetToken = this.generateResetToken();
@@ -431,5 +390,40 @@ export class AuthService {
 
   private generateResetToken(): string {
     return Math.random().toString(36).substring(2, 15);
+  }
+
+  async validateOAuthLogin(userData: any, provider: AuthProvider) {
+    try {
+      let user = await this.userRepository.findOne({
+        where: { email: userData.email },
+      });
+
+      if (!user) {
+        user = this.userRepository.create({
+          email: userData.email,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          provider,
+          providerId: userData.providerId,
+          isEmailVerified: true,
+        });
+        await this.userRepository.save(user);
+      }
+
+      const tokens = await this.generateTokens(user);
+      return { user, ...tokens };
+    } catch (err) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+  }
+
+  async refreshTokens(userId: string, refreshToken: string) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user || user.refreshToken !== refreshToken) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const tokens = await this.generateTokens(user);
+    return { user, ...tokens };
   }
 }

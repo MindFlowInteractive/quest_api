@@ -131,15 +131,13 @@ export class DataExportController {
 
       return {
         success: result.success,
-        message: result.success
-          ? 'Import completed successfully'
-          : 'Import completed with errors',
+        message: result.message,
         data: {
-          recordsProcessed: result.recordsProcessed,
-          recordsImported: result.recordsImported,
+          recordsProcessed: result.data.recordsProcessed,
+          recordsImported: result.data.recordsImported,
+          errors: result.data.errors,
+          warnings: result.data.warnings,
         },
-        errors: result.errors,
-        warnings: result.warnings,
       };
     } catch (error: unknown) {
       const errorMessage =
@@ -184,8 +182,8 @@ export class DataExportController {
 
       return {
         valid: result.success,
-        errors: result.errors,
-        warnings: result.warnings,
+        errors: result.data.errors,
+        warnings: result.data.warnings,
       };
     } finally {
       try {
