@@ -7,79 +7,75 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
-} from "typeorm"
-import { FileEntity } from "./file.entity"
-import { User } from "@/modules/data-system/entities/user.entity"
+} from 'typeorm';
+import { FileEntity } from './file.entity';
+import { User } from '@/modules/data-system/entities/user.entity';
 
 export enum ShareType {
-  PUBLIC_LINK = "public_link",
-  PRIVATE_LINK = "private_link",
-  USER_SHARE = "user_share",
-  SOCIAL_MEDIA = "social_media",
+  PUBLIC_LINK = 'public_link',
+  PRIVATE_LINK = 'private_link',
+  USER_SHARE = 'user_share',
+  SOCIAL_MEDIA = 'social_media',
 }
 
-@Entity("file_shares")
-@Index(["shareToken"])
-@Index(["fileId", "shareType"])
+@Entity('file_shares')
+@Index(['shareToken'])
+@Index(['fileId', 'shareType'])
 export class FileShare {
-  @PrimaryGeneratedColumn("uuid")
-  id!: string
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
 
-  @Column({ type: "enum", enum: ShareType })
-  shareType!: ShareType
+  @Column({ type: 'enum', enum: ShareType })
+  shareType!: ShareType;
 
   @Column({ unique: true })
-  shareToken!: string
+  shareToken!: string;
 
   @Column({ nullable: true })
-  password!: string
+  password!: string;
 
   @Column({ nullable: true })
-  expiresAt!: Date
+  expiresAt!: Date;
 
   @Column({ default: 0 })
-  maxDownloads!: number
+  maxDownloads!: number;
 
   @Column({ default: 0 })
-  downloadCount!: number
+  downloadCount!: number;
 
   @Column({ default: true })
-  isActive!: boolean
+  isActive!: boolean;
 
-  @Column({ type: "json", nullable: true })
-  permissions?: Record<string, boolean>
+  @Column({ type: 'json', nullable: true })
+  permissions?: Record<string, boolean>;
 
-  @Column({ type: "json", nullable: true })
-  socialMetadata?: Record<string, any>
+  @Column({ type: 'json', nullable: true })
+  socialMetadata?: Record<string, any>;
 
-  @ManyToOne(
-    () => FileEntity,
-    (file) => file.shares,
-    { onDelete: "CASCADE" },
-  )
-  @JoinColumn({ name: "fileId" })
-  file!: FileEntity
+  @ManyToOne(() => FileEntity, (file) => file.shares, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'fileId' })
+  file!: FileEntity;
 
-  @Column("uuid")
-  fileId!: string
+  @Column('uuid')
+  fileId!: string;
 
   @ManyToOne(() => User, { nullable: true })
-  @JoinColumn({ name: "sharedWithUserId" })
-  sharedWithUser?: User
+  @JoinColumn({ name: 'sharedWithUserId' })
+  sharedWithUser?: User;
 
-  @Column("uuid", { nullable: true })
-  sharedWithUserId?: string
+  @Column('uuid', { nullable: true })
+  sharedWithUserId?: string;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: "sharedByUserId" })
-  sharedByUser!: User
+  @JoinColumn({ name: 'sharedByUserId' })
+  sharedByUser!: User;
 
-  @Column("uuid")
-  sharedByUserId!: string
+  @Column('uuid')
+  sharedByUserId!: string;
 
   @CreateDateColumn()
-  createdAt!: Date
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt!: Date
+  updatedAt!: Date;
 }

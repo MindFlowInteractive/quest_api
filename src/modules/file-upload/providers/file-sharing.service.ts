@@ -1,24 +1,29 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException } from "@nestjs/common"
-import { InjectRepository } from "@nestjs/typeorm"
-import type { Repository } from "typeorm"
-import { FileShare, ShareType } from "../entities/file-share.entity"
-import { FileEntity } from "../entities/file.entity"
-import type { FileAnalyticsService } from "./file-analytics.service"
-import { AnalyticsEvent } from "../entities/file-analytics.entity"
-import type { FileShareDto } from "../dto/file-upload.dto"
-import * as crypto from "crypto"
-import * as bcrypt from "bcrypt"
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import type { Repository } from 'typeorm';
+import { FileShare, ShareType } from '../entities/file-share.entity';
+import { FileEntity } from '../entities/file.entity';
+import type { FileAnalyticsService } from './file-analytics.service';
+import { AnalyticsEvent } from '../entities/file-analytics.entity';
+import type { FileShareDto } from '../dto/file-upload.dto';
+import * as crypto from 'crypto';
+import * as bcrypt from 'bcrypt';
 
 export interface ShareResult {
-  shareToken: string
-  shareUrl: string
-  expiresAt?: Date
-  maxDownloads?: number
+  shareToken: string;
+  shareUrl: string;
+  expiresAt?: Date;
+  maxDownloads?: number;
 }
 
 @Injectable()
 export class FileSharingService {
-  private readonly logger = new Logger(FileSharingService.name)
+  private readonly logger = new Logger(FileSharingService.name);
   private readonly baseUrl: string;
 
   constructor(
@@ -40,19 +45,19 @@ export class FileSharingService {
     // Verify file ownership
     const file = await this.fileRepository.findOne({
       where: { id: fileId, userId },
-    })
+    });
 
     if (!file) {
-      throw new NotFoundException("File not found")
+      throw new NotFoundException('File not found');
     }
 
     // Generate share token
-    const shareToken = this.generateShareToken()
+    const shareToken = this.generateShareToken();
 
     // Hash password if provided
-    let hashedPassword: string | undefined
+    let hashedPassword: string | undefined;
     if (shareDto.password) {
-      hashedPassword = await bcrypt.hash(shareDto.password, 10)
+      hashedPassword = await bcrypt.hash(shareDto.password, 10);
     }
 
     // Create share record
@@ -66,58 +71,66 @@ export class FileSharingService {
       permissions: shareDto.permissions || { download: true, view: true },
       sharedByUserId: userId,
       sharedWithUserId: shareDto.sharedWithUserId,
-    })
+    });
 
-    const savedShare = await this.shareRepository.save(share)
+    const savedShare = await this.shareRepository.save(share);
 
     // Record analytics
-    await this.analyticsService.recordEvent(fileId, AnalyticsEvent.SHARE, undefined, {
-      shareType,
-      hasPassword: !!shareDto.password,
-      hasExpiration: !!shareDto.expiresAt,
-    })
+    await this.analyticsService.recordEvent(
+      fileId,
+      AnalyticsEvent.SHARE,
+      undefined,
+      {
+        shareType,
+        hasPassword: !!shareDto.password,
+        hasExpiration: !!shareDto.expiresAt,
+      },
+    );
 
     return {
       shareToken,
       shareUrl: `${this.baseUrl}/api/v1/file-upload/shared/${shareToken}`,
       expiresAt: savedShare.expiresAt,
       maxDownloads: savedShare.maxDownloads,
-    }
+    };
   }
 
-  async getSharedFile(shareToken: string, password?: string): Promise<{ file: FileEntity; share: FileShare }> {
+  async getSharedFile(
+    shareToken: string,
+    password?: string,
+  ): Promise<{ file: FileEntity; share: FileShare }> {
     const share = await this.shareRepository.findOne({
       where: { shareToken, isActive: true },
-      relations: ["file"],
-    })
+      relations: ['file'],
+    });
 
     if (!share) {
-      throw new NotFoundException("Share not found")
+      throw new NotFoundException('Share not found');
     }
 
     // Check if share is expired
     if (share.expiresAt && share.expiresAt < new Date()) {
-      throw new ForbiddenException("Share has expired")
+      throw new ForbiddenException('Share has expired');
     }
 
     // Check download limit
     if (share.maxDownloads > 0 && share.downloadCount >= share.maxDownloads) {
-      throw new ForbiddenException("Download limit exceeded")
+      throw new ForbiddenException('Download limit exceeded');
     }
 
     // Check password
     if (share.password) {
       if (!password) {
-        throw new ForbiddenException("Password required")
+        throw new ForbiddenException('Password required');
       }
 
-      const isPasswordValid = await bcrypt.compare(password, share.password)
+      const isPasswordValid = await bcrypt.compare(password, share.password);
       if (!isPasswordValid) {
-        throw new ForbiddenException("Invalid password")
+        throw new ForbiddenException('Invalid password');
       }
     }
 
-    return { file: share.file, share }
+    return { file: share.file, share };
   }
 
   async downloadSharedFile(
@@ -125,47 +138,54 @@ export class FileSharingService {
     password?: string,
     requestInfo?: { userAgent?: string; ipAddress?: string },
   ): Promise<{ file: FileEntity; downloadUrl: string }> {
-    const { file, share } = await this.getSharedFile(shareToken, password)
+    const { file, share } = await this.getSharedFile(shareToken, password);
 
     // Check download permission
     if (!share.permissions?.download) {
-      throw new ForbiddenException("Download not permitted")
+      throw new ForbiddenException('Download not permitted');
     }
 
     // Increment download count
-    await this.shareRepository.increment({ id: share.id }, "downloadCount", 1)
+    await this.shareRepository.increment({ id: share.id }, 'downloadCount', 1);
 
     // Record analytics
-    await this.analyticsService.recordEvent(file.id, AnalyticsEvent.DOWNLOAD, requestInfo, {
-      shareToken,
-      shareType: share.shareType,
-    })
+    await this.analyticsService.recordEvent(
+      file.id,
+      AnalyticsEvent.DOWNLOAD,
+      requestInfo,
+      {
+        shareToken,
+        shareType: share.shareType,
+      },
+    );
 
     // Generate download URL (this would typically be a presigned URL)
-    const downloadUrl = file.publicUrl || `${this.baseUrl}/api/v1/file-upload/download/${file.id}`
+    const downloadUrl =
+      file.publicUrl ||
+      `${this.baseUrl}/api/v1/file-upload/download/${file.id}`;
 
-    return { file, downloadUrl }
+    return { file, downloadUrl };
   }
 
   async getUserShares(userId: string): Promise<FileShare[]> {
     return this.shareRepository.find({
       where: { sharedByUserId: userId },
-      relations: ["file"],
-      order: { createdAt: "DESC" },
-    })
+      relations: ['file'],
+      order: { createdAt: 'DESC' },
+    });
   }
 
   async revokeShare(shareId: string, userId: string): Promise<void> {
     const share = await this.shareRepository.findOne({
       where: { id: shareId, sharedByUserId: userId },
-    })
+    });
 
     if (!share) {
-      throw new NotFoundException("Share not found")
+      throw new NotFoundException('Share not found');
     }
 
-    share.isActive = false
-    await this.shareRepository.save(share)
+    share.isActive = false;
+    await this.shareRepository.save(share);
   }
 
   async createSocialMediaShare(
@@ -179,7 +199,7 @@ export class FileSharingService {
       userId,
       { maxDownloads: 0 }, // No download limit for social media
       ShareType.SOCIAL_MEDIA,
-    )
+    );
 
     // Update share with social media metadata
     await this.shareRepository.update(
@@ -190,43 +210,47 @@ export class FileSharingService {
           ...(metadata || {}),
         } as any, // Cast to any to satisfy the type checker
       },
-    )
+    );
 
-    return shareResult
+    return shareResult;
   }
 
   private generateShareToken(): string {
-    return crypto.randomBytes(32).toString("hex")
+    return crypto.randomBytes(32).toString('hex');
   }
 
   async getShareAnalytics(
     shareId: string,
     userId: string,
   ): Promise<{
-    totalViews: number
-    totalDownloads: number
+    totalViews: number;
+    totalDownloads: number;
     recentActivity: Array<{
-      event: string
-      timestamp: Date
-      metadata?: any
-    }>
+      event: string;
+      timestamp: Date;
+      metadata?: any;
+    }>;
   }> {
     const share = await this.shareRepository.findOne({
       where: { id: shareId, sharedByUserId: userId },
-      relations: ["file"],
-    })
+      relations: ['file'],
+    });
 
     if (!share) {
-      throw new NotFoundException("Share not found")
+      throw new NotFoundException('Share not found');
     }
 
     // Get analytics for this share
-    const analytics = await this.analyticsService.getAnalyticsReport(userId, share.createdAt, new Date())
+    const analytics = await this.analyticsService.getAnalyticsReport(
+      userId,
+      share.createdAt,
+      new Date(),
+    );
 
     return {
       totalViews: share.file.viewCount,
       totalDownloads: share.downloadCount,
       recentActivity: [], // This would be populated from analytics data
-    }
+    };
   }
 }

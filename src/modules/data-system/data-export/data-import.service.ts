@@ -278,7 +278,7 @@ export class DataImportService {
     }
 
     // TypeScript: user is User here, not null
-    return this.userRepository.save(user as User);
+    return this.userRepository.save(user);
   }
 
   private async importPuzzle(
