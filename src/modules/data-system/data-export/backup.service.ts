@@ -43,11 +43,18 @@ export class BackupService {
     checksum: string,
     metadata: any,
   ): Promise<void> {
+
+    // an object snap shot of the meta data and the other types as a list of other types
+    interface BackupMetadata {
+      fileName: string;
+      checksum: string;
+      [others: string]: any;
+    }
     const metadataFile = path.join(this.backupPath, 'backup_metadata.json');
-    let existingMetadata: any[] = [];
+    let existingMetadata: BackupMetadata[] = [];
     try {
-      const content = await fs.readFile(metadataFile, 'utf-8');
-      existingMetadata = JSON.parse(content);
+      const content: string = await fs.readFile(metadataFile, 'utf-8');
+      existingMetadata = JSON.parse(content) as BackupMetadata[];
     } catch {
       // No metadata file yet
     }
@@ -56,7 +63,7 @@ export class BackupService {
       fileName,
       checksum,
       ...metadata,
-    });
+    } as BackupMetadata);
 
     await fs.writeFile(metadataFile, JSON.stringify(existingMetadata, null, 2));
   }
