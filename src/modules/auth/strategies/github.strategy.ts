@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-github2';
 import { ConfigService } from '@nestjs/config';
+import { AuthService } from '../services/auth.service';
+import { AuthProvider } from '../entities/user.entity';
 
 interface GithubProfile {
   id: string;
@@ -26,47 +28,34 @@ type DoneCallback = (err: Error | null, user: GithubUser | false) => void;
 
 @Injectable()
 export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private authService: AuthService,
+  ) {
     super({
-      clientID: configService.get<string>('GITHUB_CLIENT_ID'),
-      clientSecret: configService.get<string>('GITHUB_CLIENT_SECRET'),
-      callbackURL: configService.get<string>('GITHUB_CALLBACK_URL'),
+      clientID: configService.get<string>('GITHUB_CLIENT_ID') || '',
+      clientSecret: configService.get<string>('GITHUB_CLIENT_SECRET') || '',
+      callbackURL: configService.get<string>('GITHUB_CALLBACK_URL') || '',
       scope: ['user:email'],
+      passReqToCallback: true,
     });
   }
 
-  validate(
+  async validate(
+    request: any,
     accessToken: string,
     refreshToken: string,
-    profile: GithubProfile,
-    done: DoneCallback,
-  ): void {
-    // GitHub profile structure is different from Google
-    const { id, username, displayName, emails, photos } = profile;
-    
-    // GitHub may not provide email directly, so we need to handle that case
-    const email = emails && emails.length > 0 ? emails[0].value : null;
-    
-    // Extract name parts if available
-    let firstName: string | null = null;
-    let lastName: string | null = null;
-    
-    if (displayName) {
-      const nameParts = displayName.split(' ');
-      firstName = nameParts[0] || null;
-      lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : null;
-    }
-    
-    const user: GithubUser = {
-      email,
-      username,
-      firstName,
-      lastName,
-      picture: photos && photos.length > 0 ? photos[0].value : null,
+    profile: any,
+  ) {
+    const { name, emails, photos } = profile;
+    const user = {
+      email: emails[0].value,
+      firstName: name?.givenName || '',
+      lastName: name?.familyName || '',
+      picture: photos?.[0]?.value,
       accessToken,
-      providerId: id,
+      providerId: profile.id,
     };
-    
-    done(null, user);
+    return this.authService.validateOAuthLogin(user, AuthProvider.GITHUB);
   }
 }

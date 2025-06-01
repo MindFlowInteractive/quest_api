@@ -195,8 +195,10 @@ export class BackupService {
         filePath,
         checksum,
       };
-    } catch (error) {
-      this.logger.error('Full backup failed:', error);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error('Full backup failed:', errorMessage);
       return {
         success: false,
         errors: [error instanceof Error ? error.message : String(error)],
@@ -280,6 +282,7 @@ export class BackupService {
                   error instanceof Error ? error.message : String(error)
                 }`,
               );
+              throw error;
             }
           }
         } catch (error) {
@@ -288,6 +291,7 @@ export class BackupService {
               error instanceof Error ? error.message : String(error)
             }`,
           );
+          throw error;
         }
       }
 
@@ -296,8 +300,10 @@ export class BackupService {
         recordsRestored,
         errors: errors.length > 0 ? errors : undefined,
       };
-    } catch (error) {
-      this.logger.error('Failed to restore from backup:', error);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error('Failed to restore from backup:', errorMessage);
       return {
         success: false,
         recordsRestored: 0,

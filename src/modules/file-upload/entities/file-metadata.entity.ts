@@ -1,31 +1,34 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from "typeorm"
-import { FileEntity } from "./file.entity"
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+} from 'typeorm';
+import { FileEntity } from './file.entity';
 
-@Entity("file_metadata")
+@Entity('file_metadata')
 export class FileMetadata {
-  @PrimaryGeneratedColumn("uuid")
-  id!: string
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
 
   @Column()
-  key!: string
+  key!: string;
 
-  @Column("text")
-  value!: string
+  @Column('text')
+  value!: string;
 
   @Column({ nullable: true })
-  category!: string
+  category!: string;
 
-  @ManyToOne(
-    () => FileEntity,
-    (file) => file.metadata,
-    { onDelete: "CASCADE" },
-  )
-  @JoinColumn({ name: "fileId" })
-  file!: FileEntity
+  @ManyToOne(() => FileEntity, (file) => file.metadata, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'fileId' })
+  file!: FileEntity;
 
-  @Column("uuid")
-  fileId!: string
+  @Column('uuid')
+  fileId!: string;
 
   @CreateDateColumn()
-  createdAt!: Date
+  createdAt!: Date;
 }

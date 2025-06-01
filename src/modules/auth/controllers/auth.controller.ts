@@ -5,190 +5,181 @@ import {
   UseGuards,
   Get,
   Req,
-  Res,
   HttpCode,
   HttpStatus,
   Param,
-  UnauthorizedException,
+  Res,
+  Request,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { Request, Response } from 'express';
-
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { RolesGuard } from '../guards/roles.guard';
+import { Roles } from '../decorators/roles.decorator';
+import { UserRole, AuthProvider, User } from '../entities/user.entity';
 import { AuthService } from '../services/auth.service';
-import { RegisterDto } from '../dto/register.dto';
-import { LoginDto } from '../dto/login.dto';
 import { ForgotPasswordDto } from '../dto/forgot-password.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
-import { RefreshTokenDto } from '../dto/refresh-token.dto';
 import { Public } from '../decorators/public.decorator';
-import { CurrentUser } from '../decorators/current-user.decorator';
-import { JwtAuthGuard } from '../guards/jwt-auth.guard';
-import { AuthProvider } from '../entities/user.entity';
+import { LocalAuthGuard } from '../guards/local-auth.guard';
+
+interface RequestWithUser extends Omit<Request, 'body'> {
+  user: User;
+  body: {
+    refreshToken?: string;
+    [key: string]: any;
+  };
+}
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Public()
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid input data' })
-  @ApiResponse({ status: 409, description: 'Email or username already in use' })
-  async register(@Body() registerDto: RegisterDto, @Req() req: Request) {
-    const userAgent = req.headers['user-agent'];
-    const ipAddress = req.ip;
-    return this.authService.register(registerDto);
-  }
-
-  @Public()
-  @Post('login')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Login a user' })
-  @ApiResponse({ status: 200, description: 'User logged in successfully' })
-  @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  async login(@Body() loginDto: LoginDto, @Req() req: Request) {
-    const userAgent = req.headers['user-agent'];
-    const ipAddress = req.ip;
-    return this.authService.login(loginDto, userAgent, ipAddress);
-  }
-
-  @Post('refresh')
-  @Public()
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Refresh access token' })
-  @ApiResponse({ status: 200, description: 'Token refreshed successfully' })
-  @ApiResponse({ status: 401, description: 'Invalid refresh token' })
-  async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
-    try {
-      // Decode token to get user ID
-      const payload = this.authService['jwtService'].decode(refreshTokenDto.refreshToken);
-      
-      if (!payload || !payload.sub) {
-        throw new UnauthorizedException('Invalid refresh token');
-      }
-      
-      return this.authService.refreshToken(
-        payload.sub,
-        refreshTokenDto.refreshToken,
-      );
-    } catch (error) {
-      throw new UnauthorizedException('Invalid refresh token');
-    }
-  }
-
-  @Post('logout')
-  @UseGuards(JwtAuthGuard)
-  @HttpCode(HttpStatus.OK)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Logout a user' })
-  @ApiResponse({ status: 200, description: 'User logged out successfully' })
-  async logout(
-    @CurrentUser('id') userId: string,
-    @Body() refreshTokenDto: RefreshTokenDto,
+  async register(
+    @Body() registerData: { email: string; password: string; name: string },
   ) {
-    await this.authService.logout(userId, refreshTokenDto.refreshToken);
+    const { email, password, name } = registerData;
+    return this.authService.register(email, password, name);
+  }
+
+  @UseGuards(LocalAuthGuard)
+  @Post('login')
+  @ApiOperation({ summary: 'Login user' })
+  @ApiResponse({ status: 200, description: 'Login successful' })
+  @HttpCode(HttpStatus.OK)
+  async login(@Req() req: RequestWithUser) {
+    return this.authService.generateTokens(req.user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  @ApiOperation({ summary: 'Logout user' })
+  @ApiResponse({ status: 200, description: 'Logout successful' })
+  async logout(@Req() req: RequestWithUser) {
+    const userId = req.user?.id;
+    if (userId) {
+      await this.authService.logout(userId);
+    }
     return { message: 'Logged out successfully' };
   }
 
-  @Public()
-  @Post('forgot-password')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Request password reset' })
-  @ApiResponse({ status: 200, description: 'Password reset email sent' })
-  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
-    await this.authService.forgotPassword(forgotPasswordDto);
-    return { message: 'Password reset instructions sent to your email' };
-  }
-
-  @Public()
-  @Post('reset-password')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Reset password using token' })
-  @ApiResponse({ status: 200, description: 'Password reset successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid token or passwords' })
-  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
-    await this.authService.resetPassword(resetPasswordDto);
-    return { message: 'Password reset successfully' };
-  }
-
-  @Public()
-  @Get('verify-email/:token')
-  @ApiOperation({ summary: 'Verify email using token' })
-  @ApiResponse({ status: 200, description: 'Email verified successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid verification token' })
-  async verifyEmail(@Param('token') token: string) {
-    await this.authService.verifyEmail(token);
-    return { message: 'Email verified successfully' };
-  }
-
-  // OAuth routes
-  @Public()
-  @Get('google')
-  @UseGuards(AuthGuard('google'))
-  @ApiOperation({ summary: 'Initiate Google OAuth login' })
-  async googleAuth() {
-    // This route will redirect to Google OAuth
-  }
-
-  @Public()
-  @Get('google/callback')
-  @UseGuards(AuthGuard('google'))
-  @ApiOperation({ summary: 'Google OAuth callback' })
-  async googleAuthCallback(@Req() req: Request, @Res() res: Response) {
-    const userAgent = req.headers['user-agent'];
-    const ipAddress = req.ip;
-    
-    const { user, tokens } = await this.authService.oauthLogin(
-      AuthProvider.GOOGLE,
-      req.user,
-      userAgent,
-      ipAddress,
-    );
-    
-    // Redirect to frontend with tokens
-    const redirectUrl = `${this.authService['configService'].get<string>('FRONTEND_URL')}/auth/oauth-callback?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`;
-    
-    return res.redirect(redirectUrl);
-  }
-
-  @Public()
-  @Get('github')
-  @UseGuards(AuthGuard('github'))
-  @ApiOperation({ summary: 'Initiate GitHub OAuth login' })
-  async githubAuth() {
-    // This route will redirect to GitHub OAuth
-  }
-
-  @Public()
-  @Get('github/callback')
-  @UseGuards(AuthGuard('github'))
-  @ApiOperation({ summary: 'GitHub OAuth callback' })
-  async githubAuthCallback(@Req() req: Request, @Res() res: Response) {
-    const userAgent = req.headers['user-agent'];
-    const ipAddress = req.ip;
-    
-    const { user, tokens } = await this.authService.oauthLogin(
-      AuthProvider.GITHUB,
-      req.user,
-      userAgent,
-      ipAddress,
-    );
-    
-    // Redirect to frontend with tokens
-    const redirectUrl = `${this.authService['configService'].get<string>('FRONTEND_URL')}/auth/oauth-callback?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`;
-    
-    return res.redirect(redirectUrl);
+  @UseGuards(JwtAuthGuard)
+  @Post('refresh')
+  @ApiOperation({ summary: 'Refresh access token' })
+  @ApiResponse({ status: 200, description: 'Token refreshed successfully' })
+  async refresh(@Req() req: RequestWithUser) {
+    const userId = req.user?.id;
+    const refreshToken = req.body?.refreshToken;
+    if (!userId || !refreshToken) {
+      throw new Error('Invalid refresh token');
+    }
+    return this.authService.refreshTokens(userId, refreshToken);
   }
 
   @Get('profile')
+  @ApiOperation({ summary: 'Get user profile' })
+  @ApiResponse({ status: 200, description: 'Profile retrieved successfully' })
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get current user profile' })
-  @ApiResponse({ status: 200, description: 'User profile retrieved successfully' })
-  async getProfile(@CurrentUser() user: any) {
-    return user;
+  async getProfile(@Req() req: RequestWithUser) {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new Error('User not found in request');
+    }
+    return this.authService.getProfile(userId);
+  }
+
+  @Post('change-password')
+  @ApiOperation({ summary: 'Change user password' })
+  @ApiResponse({ status: 200, description: 'Password changed successfully' })
+  @UseGuards(JwtAuthGuard)
+  async changePassword(
+    @Body() data: { currentPassword: string; newPassword: string },
+    @Req() req: RequestWithUser,
+  ) {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new Error('User not found in request');
+    }
+    return this.authService.changePassword(
+      userId,
+      data.currentPassword,
+      data.newPassword,
+    );
+  }
+
+  @Post('request-password-reset')
+  @ApiOperation({ summary: 'Request password reset' })
+  @ApiResponse({ status: 200, description: 'Reset email sent' })
+  async requestPasswordReset(@Body() data: { email: string }) {
+    return this.authService.requestPasswordReset(data.email);
+  }
+
+  @Post('reset-password')
+  @ApiOperation({ summary: 'Reset password' })
+  @ApiResponse({ status: 200, description: 'Password reset successful' })
+  async resetPassword(
+    @Body('token') token: string,
+    @Body('newPassword') newPassword: string,
+  ) {
+    await this.authService.resetPassword(token, newPassword);
+    return { message: 'Password reset successful' };
+  }
+
+  @Get('admin')
+  @ApiOperation({ summary: 'Admin endpoint' })
+  @ApiResponse({ status: 200, description: 'Admin access granted' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async adminEndpoint() {
+    return { message: 'Admin access granted' };
+  }
+
+  @Post('forgot-password')
+  @ApiOperation({ summary: 'Request password reset' })
+  @ApiResponse({ status: 200, description: 'Password reset email sent' })
+  async forgotPassword(@Body('email') email: string) {
+    await this.authService.forgotPassword(email);
+    return { message: 'Password reset email sent' };
+  }
+
+  @Public()
+  @Post('google')
+  @ApiOperation({ summary: 'Initiate Google OAuth login' })
+  async googleAuth() {
+    return { message: 'Google auth endpoint' };
+  }
+
+  @Public()
+  @Post('google/callback')
+  @ApiOperation({ summary: 'Google OAuth callback' })
+  async googleAuthCallback(@Req() req: RequestWithUser, @Res() res: Response) {
+    const result = await this.authService.validateOAuthLogin(
+      req.user,
+      AuthProvider.GOOGLE,
+    );
+    res.redirect(`/auth/callback?token=${result.accessToken}`);
+  }
+
+  @Public()
+  @Post('github')
+  @ApiOperation({ summary: 'Initiate GitHub OAuth login' })
+  async githubAuth() {
+    return { message: 'GitHub auth endpoint' };
+  }
+
+  @Public()
+  @Post('github/callback')
+  @ApiOperation({ summary: 'GitHub OAuth callback' })
+  async githubAuthCallback(@Req() req: RequestWithUser, @Res() res: Response) {
+    const result = await this.authService.validateOAuthLogin(
+      req.user,
+      AuthProvider.GITHUB,
+    );
+    res.redirect(`/auth/callback?token=${result.accessToken}`);
   }
 }

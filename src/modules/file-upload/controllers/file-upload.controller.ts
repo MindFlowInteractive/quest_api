@@ -13,24 +13,29 @@ import {
   Res,
   HttpStatus,
   BadRequestException,
-} from "@nestjs/common";
-import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
-import { ApiTags, ApiOperation, ApiResponse, ApiConsumes } from "@nestjs/swagger";
-import type { Request, Response } from "express";
-import { FileUploadService } from "../providers/file-upload.service";
-import { FileSharingService } from "../providers/file-sharing.service";
-import { FileAnalyticsService } from "../providers/file-analytics.service";
-import { StorageService } from "../providers/storage.service";
+} from '@nestjs/common';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiConsumes,
+} from '@nestjs/swagger';
+import type { Request, Response } from 'express';
+import { FileUploadService } from '../providers/file-upload.service';
+import { FileSharingService } from '../providers/file-sharing.service';
+import { FileAnalyticsService } from '../providers/file-analytics.service';
+import { StorageService } from '../providers/storage.service';
 import {
   BulkOperationDto,
   FileSearchDto,
   FileShareDto,
   FileUploadDto,
-} from "../dto/file-upload.dto";
-import { ShareType } from "../entities/file-share.entity";
+} from '../dto/file-upload.dto';
+import { ShareType } from '../entities/file-share.entity';
 
-@ApiTags("file-upload")
-@Controller("file-upload")
+@ApiTags('file-upload')
+@Controller('file-upload')
 export class FileUploadController {
   constructor(
     private readonly fileUploadService: FileUploadService,
@@ -39,21 +44,21 @@ export class FileUploadController {
     private readonly storageService: StorageService,
   ) {}
 
-  @Post("upload")
-  @ApiOperation({ summary: "Upload a single file" })
-  @ApiConsumes("multipart/form-data")
-  @ApiResponse({ status: 201, description: "File uploaded successfully" })
-  @UseInterceptors(FileInterceptor("file"))
+  @Post('upload')
+  @ApiOperation({ summary: 'Upload a single file' })
+  @ApiConsumes('multipart/form-data')
+  @ApiResponse({ status: 201, description: 'File uploaded successfully' })
+  @UseInterceptors(FileInterceptor('file'))
   async uploadFile(
     @UploadedFile() file: Express.Multer.File,
     @Body() uploadDto: FileUploadDto,
     @Req() req: Request,
   ) {
     if (!file) {
-      throw new BadRequestException("File is required");
+      throw new BadRequestException('File is required');
     }
 
-    const userId = (req.headers["user-id"] as string) || "mock-user-id";
+    const userId = (req.headers['user-id'] as string) || 'mock-user-id';
 
     const result = await this.fileUploadService.uploadFile(
       file.buffer,
@@ -62,14 +67,14 @@ export class FileUploadController {
       userId,
       uploadDto,
       {
-        userAgent: req.headers["user-agent"],
+        userAgent: req.headers['user-agent'],
         ipAddress: req.ip,
       },
     );
 
     return {
       success: true,
-      message: "File uploaded successfully",
+      message: 'File uploaded successfully',
       data: {
         file: {
           id: result.file.id,
@@ -89,21 +94,21 @@ export class FileUploadController {
     };
   }
 
-  @Post("upload/multiple")
-  @ApiOperation({ summary: "Upload multiple files" })
-  @ApiConsumes("multipart/form-data")
-  @ApiResponse({ status: 201, description: "Files uploaded successfully" })
-  @UseInterceptors(FilesInterceptor("files", 10))
+  @Post('upload/multiple')
+  @ApiOperation({ summary: 'Upload multiple files' })
+  @ApiConsumes('multipart/form-data')
+  @ApiResponse({ status: 201, description: 'Files uploaded successfully' })
+  @UseInterceptors(FilesInterceptor('files', 10))
   async uploadMultipleFiles(
     @UploadedFiles() files: Express.Multer.File[],
     @Body() uploadDto: FileUploadDto,
     @Req() req: Request,
   ) {
     if (!files || files.length === 0) {
-      throw new BadRequestException("At least one file is required");
+      throw new BadRequestException('At least one file is required');
     }
 
-    const userId = (req.headers["user-id"] as string) || "mock-user-id";
+    const userId = (req.headers['user-id'] as string) || 'mock-user-id';
     const results = [];
     const errors = [];
 
@@ -116,7 +121,7 @@ export class FileUploadController {
           userId,
           uploadDto,
           {
-            userAgent: req.headers["user-agent"],
+            userAgent: req.headers['user-agent'],
             ipAddress: req.ip,
           },
         );
@@ -144,22 +149,29 @@ export class FileUploadController {
     };
   }
 
-  @Get("presigned-url")
-  @ApiOperation({ summary: "Get presigned URL for direct upload" })
-  @ApiResponse({ status: 200, description: "Presigned URL generated successfully" })
+  @Get('presigned-url')
+  @ApiOperation({ summary: 'Get presigned URL for direct upload' })
+  @ApiResponse({
+    status: 200,
+    description: 'Presigned URL generated successfully',
+  })
   async getPresignedUploadUrl(
-    @Query("fileName") fileName: string,
-    @Query("contentType") contentType: string,
-    @Query("contentLength") contentLength?: number,
+    @Query('fileName') fileName: string,
+    @Query('contentType') contentType: string,
+    @Query('contentLength') contentLength?: number,
     @Req() req?: Request,
   ) {
-    const userId = (req?.headers["user-id"] as string) || "mock-user-id";
+    const userId = (req?.headers['user-id'] as string) || 'mock-user-id';
 
-    const result = await this.storageService.getPresignedUploadUrl(fileName, userId, {
-      contentType,
-      contentLength,
-      expiresIn: 3600, // 1 hour
-    });
+    const result = await this.storageService.getPresignedUploadUrl(
+      fileName,
+      userId,
+      {
+        contentType,
+        contentLength,
+        expiresIn: 3600, // 1 hour
+      },
+    );
 
     return {
       success: true,
@@ -167,11 +179,11 @@ export class FileUploadController {
     };
   }
 
-  @Get("files")
-  @ApiOperation({ summary: "Get user files with search and pagination" })
-  @ApiResponse({ status: 200, description: "Files retrieved successfully" })
+  @Get('files')
+  @ApiOperation({ summary: 'Get user files with search and pagination' })
+  @ApiResponse({ status: 200, description: 'Files retrieved successfully' })
   async getUserFiles(@Query() searchDto: FileSearchDto, @Req() req: Request) {
-    const userId = (req.headers["user-id"] as string) || "mock-user-id";
+    const userId = (req.headers['user-id'] as string) || 'mock-user-id';
 
     const result = await this.fileUploadService.getUserFiles(userId, searchDto);
 
@@ -181,11 +193,14 @@ export class FileUploadController {
     };
   }
 
-  @Get("files/:fileId")
-  @ApiOperation({ summary: "Get file details" })
-  @ApiResponse({ status: 200, description: "File details retrieved successfully" })
-  async getFile(@Param("fileId") fileId: string, @Req() req: Request) {
-    const userId = (req.headers["user-id"] as string) || "mock-user-id";
+  @Get('files/:fileId')
+  @ApiOperation({ summary: 'Get file details' })
+  @ApiResponse({
+    status: 200,
+    description: 'File details retrieved successfully',
+  })
+  async getFile(@Param('fileId') fileId: string, @Req() req: Request) {
+    const userId = (req.headers['user-id'] as string) || 'mock-user-id';
 
     const file = await this.fileUploadService.getFile(fileId, userId);
 
@@ -195,25 +210,25 @@ export class FileUploadController {
     };
   }
 
-  @Delete("files/:fileId")
-  @ApiOperation({ summary: "Delete a file" })
-  @ApiResponse({ status: 200, description: "File deleted successfully" })
-  async deleteFile(@Param("fileId") fileId: string, @Req() req: Request) {
-    const userId = (req.headers["user-id"] as string) || "mock-user-id";
+  @Delete('files/:fileId')
+  @ApiOperation({ summary: 'Delete a file' })
+  @ApiResponse({ status: 200, description: 'File deleted successfully' })
+  async deleteFile(@Param('fileId') fileId: string, @Req() req: Request) {
+    const userId = (req.headers['user-id'] as string) || 'mock-user-id';
 
     await this.fileUploadService.deleteFile(fileId, userId);
 
     return {
       success: true,
-      message: "File deleted successfully",
+      message: 'File deleted successfully',
     };
   }
 
-  @Post("files/bulk")
-  @ApiOperation({ summary: "Perform bulk operations on files" })
-  @ApiResponse({ status: 200, description: "Bulk operation completed" })
+  @Post('files/bulk')
+  @ApiOperation({ summary: 'Perform bulk operations on files' })
+  @ApiResponse({ status: 200, description: 'Bulk operation completed' })
   async bulkOperation(@Body() bulkDto: BulkOperationDto, @Req() req: Request) {
-    const userId = (req.headers["user-id"] as string) || "mock-user-id";
+    const userId = (req.headers['user-id'] as string) || 'mock-user-id';
 
     const result = await this.fileUploadService.bulkOperation(userId, bulkDto);
 
@@ -224,15 +239,15 @@ export class FileUploadController {
     };
   }
 
-  @Post("files/:fileId/share")
-  @ApiOperation({ summary: "Create a file share" })
-  @ApiResponse({ status: 201, description: "File share created successfully" })
+  @Post('files/:fileId/share')
+  @ApiOperation({ summary: 'Create a file share' })
+  @ApiResponse({ status: 201, description: 'File share created successfully' })
   async createShare(
-    @Param("fileId") fileId: string,
+    @Param('fileId') fileId: string,
     @Body() shareDto: FileShareDto,
     @Req() req: Request,
   ) {
-    const userId = (req.headers["user-id"] as string) || "mock-user-id";
+    const userId = (req.headers['user-id'] as string) || 'mock-user-id';
 
     const result = await this.fileSharingService.createShare(
       fileId,
@@ -243,19 +258,25 @@ export class FileUploadController {
 
     return {
       success: true,
-      message: "File share created successfully",
+      message: 'File share created successfully',
       data: result,
     };
   }
 
-  @Get("shared/:shareToken")
-  @ApiOperation({ summary: "Access shared file" })
-  @ApiResponse({ status: 200, description: "Shared file accessed successfully" })
+  @Get('shared/:shareToken')
+  @ApiOperation({ summary: 'Access shared file' })
+  @ApiResponse({
+    status: 200,
+    description: 'Shared file accessed successfully',
+  })
   async getSharedFile(
-    @Param("shareToken") shareToken: string, 
-    @Query("password") password?: string
+    @Param('shareToken') shareToken: string,
+    @Query('password') password?: string,
   ) {
-    const { file, share } = await this.fileSharingService.getSharedFile(shareToken, password);
+    const { file, share } = await this.fileSharingService.getSharedFile(
+      shareToken,
+      password,
+    );
 
     return {
       success: true,
@@ -277,21 +298,22 @@ export class FileUploadController {
     };
   }
 
-  @Get("shared/:shareToken/download")
-  @ApiOperation({ summary: "Download shared file" })
-  @ApiResponse({ status: 200, description: "File download initiated" })
+  @Get('shared/:shareToken/download')
+  @ApiOperation({ summary: 'Download shared file' })
+  @ApiResponse({ status: 200, description: 'File download initiated' })
   async downloadSharedFile(
-    @Param("shareToken") shareToken: string,
+    @Param('shareToken') shareToken: string,
     @Res() res: Response,
     @Req() req?: Request,
-    @Query("password") password?: string,
+    @Query('password') password?: string,
   ) {
-    const { file, downloadUrl } = await this.fileSharingService.downloadSharedFile(shareToken, password, {
-      userAgent: req?.headers["user-agent"],
-      ipAddress: req?.ip,
-    });
+    const { file, downloadUrl } =
+      await this.fileSharingService.downloadSharedFile(shareToken, password, {
+        userAgent: req?.headers['user-agent'],
+        ipAddress: req?.ip,
+      });
 
-    if (downloadUrl.startsWith("http")) {
+    if (downloadUrl.startsWith('http')) {
       return res.redirect(downloadUrl);
     } else {
       return res.status(HttpStatus.OK).json({
@@ -301,11 +323,14 @@ export class FileUploadController {
     }
   }
 
-  @Get("shares")
-  @ApiOperation({ summary: "Get user file shares" })
-  @ApiResponse({ status: 200, description: "File shares retrieved successfully" })
+  @Get('shares')
+  @ApiOperation({ summary: 'Get user file shares' })
+  @ApiResponse({
+    status: 200,
+    description: 'File shares retrieved successfully',
+  })
   async getUserShares(@Req() req: Request) {
-    const userId = (req.headers["user-id"] as string) || "mock-user-id";
+    const userId = (req.headers['user-id'] as string) || 'mock-user-id';
 
     const shares = await this.fileSharingService.getUserShares(userId);
 
@@ -315,14 +340,13 @@ export class FileUploadController {
     };
   }
 
-  @Delete("shares/:shareId")
-  @ApiOperation({ summary: "Delete a file share" })
-  @ApiResponse({ status: 200, description: "File share deleted successfully" })
-  async deleteShare(@Param("shareId") shareId: string, @Req() req: Request) {
-    const userId = (req.headers["user-id"] as string) || "mock-user-id";
+  @Delete('shares/:shareId')
+  @ApiOperation({ summary: 'Delete a file share' })
+  @ApiResponse({ status: 200, description: 'File share deleted successfully' })
+  async deleteShare(@Param('shareId') shareId: string, @Req() req: Request) {
+    const userId = (req.headers['user-id'] as string) || 'mock-user-id';
 
-    // Note: If deleteShare method doesn't exist in FileSharingService, 
+    // Note: If deleteShare method doesn't exist in FileSharingService,
     // you need to implement it or use an alternative method
-   
   }
 }

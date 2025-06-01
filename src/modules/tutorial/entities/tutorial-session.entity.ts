@@ -7,84 +7,84 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
-} from "typeorm"
-import { Tutorial } from "./tutorial.entity"
-import { User } from "../../data-system/entities/user.entity"
+} from 'typeorm';
+import { Tutorial } from './tutorial.entity';
+import { User } from '../../data-system/entities/user.entity';
 
 export enum SessionStatus {
-  ACTIVE = "active",
-  COMPLETED = "completed",
-  ABANDONED = "abandoned",
-  PAUSED = "paused",
+  ACTIVE = 'active',
+  COMPLETED = 'completed',
+  ABANDONED = 'abandoned',
+  PAUSED = 'paused',
 }
 
-@Entity("tutorial_sessions")
-@Index(["userId", "status"])
-@Index(["tutorialId", "startedAt"])
+@Entity('tutorial_sessions')
+@Index(['userId', 'status'])
+@Index(['tutorialId', 'startedAt'])
 export class TutorialSession {
-  @PrimaryGeneratedColumn("uuid")
-  id!: string
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
 
-  @Column({ type: "enum", enum: SessionStatus, default: SessionStatus.ACTIVE })
-  status!: SessionStatus
+  @Column({ type: 'enum', enum: SessionStatus, default: SessionStatus.ACTIVE })
+  status!: SessionStatus;
 
   @Column()
-  startedAt!: Date
+  startedAt!: Date;
 
   @Column({ nullable: true })
-  endedAt!: Date
+  endedAt!: Date;
 
   @Column({ default: 0 })
-  durationSeconds!: number
+  durationSeconds!: number;
 
   @Column({ default: 0 })
-  stepsCompleted!: number
+  stepsCompleted!: number;
 
   @Column({ default: 0 })
-  interactionsCount!: number
+  interactionsCount!: number;
 
   @Column({ default: 0 })
-  errorsCount!: number
+  errorsCount!: number;
 
   @Column({ default: 0 })
-  hintsUsed!: number
+  hintsUsed!: number;
 
-  @Column({ type: "json", nullable: true })
+  @Column({ type: 'json', nullable: true })
   deviceInfo?: {
-    userAgent?: string
-    platform?: string
-    screenResolution?: string
-    inputMethod?: string
-  }
+    userAgent?: string;
+    platform?: string;
+    screenResolution?: string;
+    inputMethod?: string;
+  };
 
-  @Column({ type: "json", nullable: true })
+  @Column({ type: 'json', nullable: true })
   performanceMetrics?: {
-    averageStepTime?: number
-    fastestStep?: number
-    slowestStep?: number
-    accuracyRate?: number
-  }
+    averageStepTime?: number;
+    fastestStep?: number;
+    slowestStep?: number;
+    accuracyRate?: number;
+  };
 
-  @Column({ type: "json", nullable: true })
-  sessionData?: Record<string, any>
+  @Column({ type: 'json', nullable: true })
+  sessionData?: Record<string, any>;
 
   @ManyToOne(() => Tutorial)
-  @JoinColumn({ name: "tutorialId" })
-  tutorial!: Tutorial
+  @JoinColumn({ name: 'tutorialId' })
+  tutorial!: Tutorial;
 
-  @Column("uuid")
-  tutorialId!: string
+  @Column('uuid')
+  tutorialId!: string;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: "userId" })
-  user!: User
+  @JoinColumn({ name: 'userId' })
+  user!: User;
 
-  @Column("uuid")
-  userId!: string
+  @Column('uuid')
+  userId!: string;
 
   @CreateDateColumn()
-  createdAt!: Date
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt!: Date
+  updatedAt!: Date;
 }
