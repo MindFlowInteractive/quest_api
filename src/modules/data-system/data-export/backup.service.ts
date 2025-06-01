@@ -276,13 +276,17 @@ export class BackupService {
               recordsRestored++;
             } catch (error) {
               errors.push(
-                `Failed to restore puzzle ${puzzleData.id}: ${error instanceof Error ? error.message : String(error)}`,
+                `Failed to restore puzzle ${puzzleData.id}: ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
               );
             }
           }
         } catch (error) {
           errors.push(
-            `Failed to restore user ${userData.email}: ${error instanceof Error ? error.message : String(error)}`,
+            `Failed to restore user ${userData.email}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
           );
         }
       }

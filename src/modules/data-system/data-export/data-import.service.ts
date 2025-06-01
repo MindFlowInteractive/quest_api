@@ -81,7 +81,10 @@ export class DataImportService {
           await this.importUser(data.user, options.userId);
           result.recordsImported++;
         } catch (error) {
-          const errorMsg = `Failed to import user: ${error instanceof Error ? error.message : String(error)}`;
+          const errorMsg =
+            error instanceof Error
+              ? `Failed to import user: ${error.message}`
+              : `Failed to import user: ${String(error)}`;
           if (options.skipErrors) {
             result.warnings.push(errorMsg);
           } else {
@@ -101,7 +104,10 @@ export class DataImportService {
             );
             result.recordsImported++;
           } catch (error) {
-            const errorMsg = `Failed to import puzzle ${puzzleData.id}: ${error instanceof Error ? error.message : String(error)}`;
+            const errorMsg =
+              error instanceof Error
+                ? `Failed to import puzzle ${puzzleData.id}: ${error.message}`
+                : `Failed to import puzzle ${puzzleData.id}: ${String(error)}`;
             if (options.skipErrors) {
               result.warnings.push(errorMsg);
             } else {
@@ -116,9 +122,11 @@ export class DataImportService {
       return result;
     } catch (error) {
       this.logger.error('Import failed:', error);
-      result.errors.push(
-        `Import failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      const errorMsg =
+        error instanceof Error
+          ? `Import failed: ${error.message}`
+          : `Import failed: ${String(error)}`;
+      result.errors.push(errorMsg);
       return result;
     }
   }
@@ -261,7 +269,8 @@ export class DataImportService {
       }
     }
 
-    return this.userRepository.save(user);
+    // TypeScript: user is User here, not null
+    return this.userRepository.save(user as User);
   }
 
   private async importPuzzle(puzzleData: any, userId: string): Promise<Puzzle> {
