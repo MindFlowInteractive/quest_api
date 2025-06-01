@@ -4,7 +4,6 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { WinstonModule } from 'nest-winston';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import * as winston from 'winston';
-import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -19,6 +18,7 @@ import { DataExportModule } from './modules/data-system/data-export/data-export.
 import { FileUploadModule } from './modules/file-upload/file-upload.module';
 import { TutorialModule } from './modules/tutorial/tutorial.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { UserModule } from './modules/user/user.module';
 
 @Module({
   imports: [
@@ -39,9 +39,7 @@ import { AuthModule } from './modules/auth/auth.module';
         username: configService.get<string>('DB_USERNAME'),
         password: configService.get<string>('DB_PASSWORD'),
         database: configService.get<string>('DB_NAME'),
-        entities: [
-          __dirname + '/**/*.entity{.ts,.js}',
-        ],
+        entities: [__dirname + '/**/*.entity{.ts,.js}'],
         synchronize: configService.get<boolean>('DB_SYNC'),
       }),
     }),
