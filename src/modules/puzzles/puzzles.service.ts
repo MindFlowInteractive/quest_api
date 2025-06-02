@@ -4,16 +4,21 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, Like } from 'typeorm';
+import { Repository, In, Like as TypeOrmLike } from 'typeorm';
 import { Puzzle, PuzzleStatus } from './entities/puzzle.entity';
 import { Category } from './entities/category.entity';
 import { Tag } from './entities/tag.entity';
 import { PuzzleVersion } from './entities/puzzle-version.entity';
 import { PuzzleAnalytics } from './entities/puzzle-analytics.entity';
 import { PuzzleRating } from './entities/puzzle-rating.entity';
+import { Review } from './entities/review.entity';
 import { CreatePuzzleDto } from './dto/create-puzzle.dto';
 import { UpdatePuzzleDto } from './dto/update-puzzle.dto';
 import { User } from '../user/entities/user.entity';
+import { Like } from './entities/like.entity';
+import { Comment } from './entities/comment.entity';
+import { Feedback } from './entities/feedback.entity';
+import { PuzzleProgress } from './entities/progress.entity';
 
 @Injectable()
 export class PuzzlesService {
@@ -30,6 +35,16 @@ export class PuzzlesService {
     private analyticsRepository: Repository<PuzzleAnalytics>,
     @InjectRepository(PuzzleRating)
     private ratingRepository: Repository<PuzzleRating>,
+    @InjectRepository(Review)
+    private reviewRepository: Repository<Review>,
+    @InjectRepository(Like)
+    private likeRepository: Repository<Like>,
+    @InjectRepository(Comment)
+    private commentRepository: Repository<Comment>,
+    @InjectRepository(Feedback)
+    private feedbackRepository: Repository<Feedback>,
+    @InjectRepository(PuzzleProgress)
+    private progressRepository: Repository<PuzzleProgress>,
   ) {}
 
   async create(createPuzzleDto: CreatePuzzleDto, user: User): Promise<Puzzle> {
@@ -149,25 +164,25 @@ export class PuzzlesService {
     }
 
     // Create new version if content is updated
-    if (updatePuzzleDto.content) {
+    if ((updatePuzzleDto as any).content) {
       await this.createVersion(
         puzzle,
         user,
-        updatePuzzleDto.versionReason || 'Content update',
+        (updatePuzzleDto as any).versionReason || 'Content update',
       );
     }
 
     // Update categories if provided
-    if (updatePuzzleDto.categoryIds) {
+    if ((updatePuzzleDto as any).categoryIds) {
       puzzle.categories = await this.categoryRepository.findBy({
-        id: In(updatePuzzleDto.categoryIds),
+        id: In((updatePuzzleDto as any).categoryIds),
       });
     }
 
     // Update tags if provided
-    if (updatePuzzleDto.tagIds) {
+    if ((updatePuzzleDto as any).tagIds) {
       puzzle.tags = await this.tagRepository.findBy({
-        id: In(updatePuzzleDto.tagIds),
+        id: In((updatePuzzleDto as any).tagIds),
       });
     }
 
@@ -251,7 +266,8 @@ export class PuzzlesService {
     });
 
     const averageRating =
-      ratings.reduce((acc, curr) => acc + curr.rating, 0) / ratings.length;
+      ratings.reduce((acc: number, curr: PuzzleRating) => acc + curr.rating, 0) /
+      (ratings.length || 1);
     puzzle.averageRating = averageRating;
     await this.puzzleRepository.save(puzzle);
 
@@ -280,5 +296,154 @@ export class PuzzlesService {
     puzzle.moderatedBy = moderatorId;
     puzzle.status = approved ? PuzzleStatus.PUBLISHED : PuzzleStatus.DRAFT;
     return this.puzzleRepository.save(puzzle);
+  }
+
+  // --- Review Methods ---
+  async addOrUpdateReview(
+    puzzleId: string,
+    user: User,
+    dto: { rating: number; comment?: string },
+  ) {
+    const puzzle = await this.findOne(puzzleId);
+    let review = await this.reviewRepository.findOne({
+      where: { puzzle: { id: puzzleId }, user: { id: user.id } },
+    });
+    if (review) {
+      review.rating = dto.rating;
+      review.comment = dto.comment;
+      await this.reviewRepository.save(review);
+      return { message: 'Review updated', review };
+    } else {
+      review = this.reviewRepository.create({
+        puzzle,
+        user,
+        rating: dto.rating,
+        comment: dto.comment,
+      });
+      await this.reviewRepository.save(review);
+      return { message: 'Review created', review };
+    }
+  }
+
+  async deleteReview(puzzleId: string, reviewId: string, user: User) {
+    const review = await this.reviewRepository.findOne({
+      where: { id: reviewId, puzzle: { id: puzzleId } },
+      relations: ['user'],
+    });
+    if (!review) throw new NotFoundException('Review not found');
+    if (review.user.id !== user.id && user.role !== 'admin') {
+      throw new BadRequestException('You can only delete your own review');
+    }
+    await this.reviewRepository.remove(review);
+    return { message: 'Review deleted' };
+  }
+
+  async getReviews(puzzleId: string) {
+    const reviews = await this.reviewRepository.find({
+      where: { puzzle: { id: puzzleId } },
+      relations: ['user'],
+      order: { createdAt: 'DESC' },
+    });
+    return { reviews };
+  }
+  // --- Like Methods ---
+  async likePuzzle(puzzleId: string, user: User) {
+    const puzzle = await this.findOne(puzzleId);
+    let like = await this.likeRepository.findOne({
+      where: { puzzle: { id: puzzleId }, user: { id: user.id } },
+    });
+    if (like) {
+      // Unlike if already liked
+      await this.likeRepository.remove(like);
+      puzzle.shareCount = Math.max(0, (puzzle.shareCount || 0) - 1);
+      await this.puzzleRepository.save(puzzle);
+      return { message: 'Puzzle unliked' };
+    } else {
+      like = this.likeRepository.create({ puzzle, user });
+      await this.likeRepository.save(like);
+      puzzle.shareCount = (puzzle.shareCount || 0) + 1;
+      await this.puzzleRepository.save(puzzle);
+      return { message: 'Puzzle liked' };
+    }
+  }
+  // --- Comment Methods ---
+  async addComment(puzzleId: string, user: User, dto: { content: string }) {
+    const puzzle = await this.findOne(puzzleId);
+    const comment = this.commentRepository.create({
+      puzzle,
+      user,
+      content: dto.content,
+    });
+    await this.commentRepository.save(comment);
+    return { message: 'Comment added', comment };
+  }
+
+  async getComments(puzzleId: string) {
+    const comments = await this.commentRepository.find({
+      where: { puzzle: { id: puzzleId } },
+      relations: ['user'],
+      order: { createdAt: 'DESC' },
+    });
+    return { comments };
+  }
+  // --- Feedback Methods ---
+  async submitFeedback(
+    puzzleId: string,
+    user: User,
+    dto: { comment?: string; difficulty?: number; quality?: number },
+  ) {
+    const puzzle = await this.findOne(puzzleId);
+    let feedback = await this.feedbackRepository.findOne({
+      where: { puzzle: { id: puzzleId }, user: { id: user.id } },
+    });
+    if (feedback) {
+      feedback.comment = dto.comment;
+      feedback.difficulty = dto.difficulty;
+      feedback.quality = dto.quality;
+      await this.feedbackRepository.save(feedback);
+      return { message: 'Feedback updated', feedback };
+    } else {
+      feedback = this.feedbackRepository.create({
+        puzzle,
+        user,
+        comment: dto.comment,
+        difficulty: dto.difficulty,
+        quality: dto.quality,
+      });
+      await this.feedbackRepository.save(feedback);
+      return { message: 'Feedback submitted', feedback };
+    }
+  }
+  // --- Progression Methods ---
+  async unlockPuzzle(puzzleId: string, user: User) {
+    const puzzle = await this.findOne(puzzleId);
+    let progress = await this.progressRepository.findOne({
+      where: { puzzle: { id: puzzleId }, user: { id: user.id } },
+    });
+    if (!progress) {
+      progress = this.progressRepository.create({
+        puzzle,
+        user,
+        completed: false,
+      });
+      await this.progressRepository.save(progress);
+      return { message: 'Puzzle unlocked', progress };
+    }
+    return { message: 'Puzzle already unlocked', progress };
+  }
+
+  async getUnlockStatus(puzzleId: string, user: User) {
+    const progress = await this.progressRepository.findOne({
+      where: { puzzle: { id: puzzleId }, user: { id: user.id } },
+    });
+    return { unlocked: !!progress };
+  }
+
+  async getUserProgress(userId: string) {
+    const progress = await this.progressRepository.find({
+      where: { user: { id: userId } },
+      relations: ['puzzle'],
+    });
+    return { progress };
   }
 }

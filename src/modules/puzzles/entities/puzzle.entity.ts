@@ -15,6 +15,11 @@ import { Tag } from './tag.entity';
 import { PuzzleVersion } from './puzzle-version.entity';
 import { PuzzleAnalytics } from './puzzle-analytics.entity';
 import { PuzzleRating } from './puzzle-rating.entity';
+import { Review } from './review.entity';
+import { Like } from './like.entity';
+import { Comment } from './comment.entity';
+import { Feedback } from './feedback.entity';
+import { PuzzleProgress } from './progress.entity';
 
 export enum PuzzleStatus {
   DRAFT = 'draft',
@@ -92,14 +97,29 @@ export class Puzzle {
   @JoinTable()
   tags: Tag[];
 
-  @OneToMany(() => PuzzleVersion, (version) => version.puzzle)
+  @OneToMany(() => PuzzleVersion, (version: PuzzleVersion) => version.puzzle)
   versions: PuzzleVersion[];
 
-  @OneToMany(() => PuzzleAnalytics, (analytics) => analytics.puzzle)
+  @OneToMany(() => PuzzleAnalytics, (analytics: PuzzleAnalytics) => analytics.puzzle)
   analytics: PuzzleAnalytics[];
 
-  @OneToMany(() => PuzzleRating, (rating) => rating.puzzle)
+  @OneToMany(() => PuzzleRating, (rating: PuzzleRating) => rating.puzzle)
   ratings: PuzzleRating[];
+
+  @OneToMany(() => Review, (review: Review) => review.puzzle)
+  reviews: Review[];
+
+  @OneToMany(() => Like, (like: Like) => like.puzzle)
+  likes: Like[];
+
+  @OneToMany(() => Comment, (comment: Comment) => comment.puzzle)
+  comments: Comment[];
+
+  @OneToMany(() => Feedback, (feedback: Feedback) => feedback.puzzle)
+  feedback: Feedback[];
+
+  @OneToMany(() => PuzzleProgress, (progress: PuzzleProgress) => progress.puzzle)
+  progress: PuzzleProgress[];
 
   @Column('boolean', { default: false })
   isPublic: boolean;
