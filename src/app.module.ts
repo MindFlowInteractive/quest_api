@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { WinstonModule } from 'nest-winston';
@@ -9,6 +9,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import configuration from './config/configuration';
 import { validate } from './config/env.validation';
+import { getRateLimitConfig } from './config/rate-limit.config';
 
 // Feature modules
 import { PuzzlesModule } from './modules/puzzles/puzzles.module';
@@ -20,6 +21,8 @@ import { TutorialModule } from './modules/tutorial/tutorial.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { UserModule } from './modules/user/user.module';
+import { SecurityModule } from './modules/security/security.module';
+import { SecurityMiddleware } from './modules/security/security.middleware';
 
 @Module({
   imports: [
@@ -50,13 +53,12 @@ import { UserModule } from './modules/user/user.module';
       }),
     }),
 
-    // Rate limiting
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60000,
-        limit: 10,
-      },
-    ]),
+    // Enhanced rate limiting with tiered configuration
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => getRateLimitConfig(),
+    }),
 
     // Winston logging
     WinstonModule.forRoot({
@@ -95,6 +97,9 @@ import { UserModule } from './modules/user/user.module';
       ],
     }),
 
+    // Security module
+    SecurityModule,
+
     // Feature modules
     AuthModule,
     UserModule,
@@ -104,10 +109,19 @@ import { UserModule } from './modules/user/user.module';
     DataExportModule,
     FileUploadModule,
     TutorialModule,
-    UserModule,
     NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(SecurityMiddleware)
+      .exclude(
+        { path: 'api/v1/auth/login', method: RequestMethod.POST },
+        { path: 'api/v1/auth/register', method: RequestMethod.POST },
+      )
+      .forRoutes('*');
+  }
+}
