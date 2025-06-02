@@ -305,8 +305,8 @@ export class AuthService {
 
     // Update password and clear reset token
     user.password = password; // Will be hashed by entity hook
-    user.passwordResetToken = null;
-    user.passwordResetTokenExpiry = null;
+    user.passwordResetToken = '';
+    // user.passwordResetTokenExpiry = undefined;
     await this.userRepository.save(user);
 
     // Revoke all refresh tokens for this user
@@ -336,8 +336,8 @@ export class AuthService {
 
     // Mark email as verified and clear verification token
     user.isEmailVerified = true;
-    user.emailVerificationToken = null;
-    user.emailVerificationTokenExpiry = null;
+    user.emailVerificationToken = '';
+    // user.emailVerificationTokenExpiry = null;
     await this.userRepository.save(user);
   }
 

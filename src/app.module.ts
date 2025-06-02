@@ -4,7 +4,6 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { WinstonModule } from 'nest-winston';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import * as winston from 'winston';
-import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -19,6 +18,8 @@ import { DataExportModule } from './modules/data-system/data-export/data-export.
 import { FileUploadModule } from './modules/file-upload/file-upload.module';
 import { TutorialModule } from './modules/tutorial/tutorial.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { UserModule } from './modules/user/user.module';
 
 @Module({
   imports: [
@@ -117,6 +118,7 @@ import { AuthModule } from './modules/auth/auth.module';
     FileUploadModule,
     TutorialModule,
     UserModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
