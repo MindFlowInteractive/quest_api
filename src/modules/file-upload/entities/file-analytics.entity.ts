@@ -1,47 +1,53 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, Index } from "typeorm"
-import { FileEntity } from "./file.entity"
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+  Index,
+} from 'typeorm';
+import { FileEntity } from './file.entity';
 
 export enum AnalyticsEvent {
-  UPLOAD = "upload",
-  DOWNLOAD = "download",
-  VIEW = "view",
-  SHARE = "share",
-  DELETE = "delete",
-  PROCESS = "process",
+  UPLOAD = 'upload',
+  DOWNLOAD = 'download',
+  VIEW = 'view',
+  SHARE = 'share',
+  DELETE = 'delete',
+  PROCESS = 'process',
 }
 
-@Entity("file_analytics")
-@Index(["fileId", "event", "createdAt"])
+@Entity('file_analytics')
+@Index(['fileId', 'event', 'createdAt'])
 export class FileAnalytics {
-  @PrimaryGeneratedColumn("uuid")
-  id!: string
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
 
-  @Column({ type: "enum", enum: AnalyticsEvent })
-  event!: AnalyticsEvent
-
-  @Column({ nullable: true })
-  userAgent!: string
+  @Column({ type: 'enum', enum: AnalyticsEvent })
+  event!: AnalyticsEvent;
 
   @Column({ nullable: true })
-  ipAddress!: string
+  userAgent!: string;
 
   @Column({ nullable: true })
-  referrer!: string
+  ipAddress!: string;
 
-  @Column({ type: "json", nullable: true })
-  metadata?: Record<string, any>
+  @Column({ nullable: true })
+  referrer!: string;
 
-  @ManyToOne(
-    () => FileEntity,
-    (file) => file.analytics,
-    { onDelete: "CASCADE" },
-  )
-  @JoinColumn({ name: "fileId" })
-  file!: FileEntity
+  @Column({ type: 'json', nullable: true })
+  metadata?: Record<string, any>;
 
-  @Column("uuid")
-  fileId!: string
+  @ManyToOne(() => FileEntity, (file) => file.analytics, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'fileId' })
+  file!: FileEntity;
+
+  @Column('uuid')
+  fileId!: string;
 
   @CreateDateColumn()
-  createdAt!: Date
+  createdAt!: Date;
 }

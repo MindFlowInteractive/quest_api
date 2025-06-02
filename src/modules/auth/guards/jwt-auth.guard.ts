@@ -6,6 +6,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { Observable } from 'rxjs';
 
 interface JwtErrorInfo {
   name?: string;
@@ -18,7 +19,9 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     super();
   }
 
-  canActivate(context: ExecutionContext) {
+  canActivate(
+    context: ExecutionContext,
+  ): boolean | Promise<boolean> | Observable<boolean> {
     // Check if the route is public
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
@@ -41,7 +44,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       } else if (info && info.name === 'JsonWebTokenError') {
         throw new UnauthorizedException('Invalid token');
       }
-      throw err || new UnauthorizedException('Unauthorized');
+      throw err || new Error('No user found');
     }
     return user;
   }

@@ -28,6 +28,9 @@ export class ExportDataDto {
   @IsOptional()
   @IsBoolean()
   anonymize?: boolean = false;
+
+  @IsOptional()
+  filters?: Record<string, any>;
 }
 
 export class ImportDataDto {
@@ -41,6 +44,9 @@ export class ImportDataDto {
   @IsOptional()
   @IsBoolean()
   skipErrors?: boolean = false;
+
+  @IsOptional()
+  options?: Record<string, any>;
 }
 
 export interface ExportResult {

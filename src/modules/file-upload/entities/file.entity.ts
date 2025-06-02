@@ -1,4 +1,4 @@
-import { User } from "@/modules/data-system/entities/user.entity"
+import { User } from '@/modules/data-system/entities/user.entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -9,127 +9,115 @@ import {
   OneToMany,
   JoinColumn,
   Index,
-} from "typeorm"
-import { FileMetadata } from "./file-metadata.entity"
-import { FileAnalytics } from "./file-analytics.entity"
-import { FileShare } from "./file-share.entity"
+} from 'typeorm';
+import { FileMetadata } from './file-metadata.entity';
+import { FileAnalytics } from './file-analytics.entity';
+import { FileShare } from './file-share.entity';
 
 export enum FileType {
-  IMAGE = "image",
-  VIDEO = "video",
-  AUDIO = "audio",
-  DOCUMENT = "document",
-  ARCHIVE = "archive",
-  OTHER = "other",
+  IMAGE = 'image',
+  VIDEO = 'video',
+  AUDIO = 'audio',
+  DOCUMENT = 'document',
+  ARCHIVE = 'archive',
+  OTHER = 'other',
 }
 
 export enum FileStatus {
-  UPLOADING = "uploading",
-  PROCESSING = "processing",
-  READY = "ready",
-  ERROR = "error",
-  DELETED = "deleted",
+  UPLOADING = 'uploading',
+  PROCESSING = 'processing',
+  READY = 'ready',
+  ERROR = 'error',
+  DELETED = 'deleted',
 }
 
 export enum StorageTier {
-  HOT = "hot",
-  WARM = "warm",
-  COLD = "cold",
-  ARCHIVE = "archive",
+  HOT = 'hot',
+  WARM = 'warm',
+  COLD = 'cold',
+  ARCHIVE = 'archive',
 }
 
-@Entity("files")
-@Index(["userId", "status"])
-@Index(["fileType", "status"])
-@Index(["createdAt"])
+@Entity('files')
+@Index(['userId', 'status'])
+@Index(['fileType', 'status'])
+@Index(['createdAt'])
 export class FileEntity {
-  @PrimaryGeneratedColumn("uuid")
-  id!: string
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
 
   @Column()
-  originalName!: string
+  originalName!: string;
 
   @Column()
-  fileName!: string
+  fileName!: string;
 
   @Column()
-  mimeType!: string
+  mimeType!: string;
 
-  @Column({ type: "enum", enum: FileType })
-  fileType!: FileType
+  @Column({ type: 'enum', enum: FileType })
+  fileType!: FileType;
 
-  @Column({ type: "bigint" })
-  size!: number
+  @Column({ type: 'bigint' })
+  size!: number;
 
   @Column({ nullable: true })
-  checksum!: string
+  checksum!: string;
 
-  @Column({ type: "enum", enum: FileStatus, default: FileStatus.UPLOADING })
-  status!: FileStatus
+  @Column({ type: 'enum', enum: FileStatus, default: FileStatus.UPLOADING })
+  status!: FileStatus;
 
-  @Column({ type: "enum", enum: StorageTier, default: StorageTier.HOT })
-  storageTier!: StorageTier
+  @Column({ type: 'enum', enum: StorageTier, default: StorageTier.HOT })
+  storageTier!: StorageTier;
 
   @Column()
-  storageKey!: string
+  storageKey!: string;
 
   @Column({ nullable: true })
-  publicUrl!: string
+  publicUrl!: string;
 
   @Column({ nullable: true })
-  thumbnailUrl!: string
+  thumbnailUrl!: string;
 
-  @Column({ type: "json", nullable: true })
-  variants?: Record<string, string> // Different sizes/formats
+  @Column({ type: 'json', nullable: true })
+  variants?: Record<string, string>; // Different sizes/formats
 
-  @Column({ type: "json", nullable: true })
-  processingMetadata?: Record<string, any>
+  @Column({ type: 'json', nullable: true })
+  processingMetadata?: Record<string, any>;
 
   @Column({ default: false })
-  isPublic!: boolean
+  isPublic!: boolean;
 
   @Column({ nullable: true })
-  expiresAt!: Date
+  expiresAt!: Date;
 
   @Column({ default: 0 })
-  downloadCount!: number
+  downloadCount!: number;
 
   @Column({ default: 0 })
-  viewCount!: number
+  viewCount!: number;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: "userId" })
-  user!: User
+  @JoinColumn({ name: 'userId' })
+  user!: User;
 
-  @Column("uuid")
-  userId!: string
+  @Column('uuid')
+  userId!: string;
 
-  @OneToMany(
-    () => FileMetadata,
-    (metadata) => metadata.file,
-    { cascade: true },
-  )
-  metadata!: FileMetadata[]
+  @OneToMany(() => FileMetadata, (metadata) => metadata.file, { cascade: true })
+  metadata!: FileMetadata[];
 
-  @OneToMany(
-    () => FileAnalytics,
-    (analytics) => analytics.file,
-    {
-      cascade: true,
-    },
-  )
-  analytics!: FileAnalytics[]
+  @OneToMany(() => FileAnalytics, (analytics) => analytics.file, {
+    cascade: true,
+  })
+  analytics!: FileAnalytics[];
 
-  @OneToMany(
-    () => FileShare,
-    (share) => share.file,
-    { cascade: true },
-  )
-  shares!: FileShare[]
+  @OneToMany(() => FileShare, (share) => share.file, { cascade: true })
+  shares!: FileShare[];
 
   @CreateDateColumn()
-  createdAt!: Date
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt!: Date
+  updatedAt!: Date;
 }

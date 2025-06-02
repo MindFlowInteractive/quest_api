@@ -1,9 +1,16 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 import { User } from './user.entity';
 
 export enum TokenType {
   REFRESH = 'refresh',
-  ACCESS = 'access',
   BLACKLISTED = 'blacklisted',
 }
 
@@ -18,32 +25,34 @@ export class Token {
   @Column({
     type: 'enum',
     enum: TokenType,
-    default: TokenType.REFRESH,
   })
   type: TokenType;
 
   @Column()
   userId: string;
 
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'user_id' })
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'userId' })
   user: User;
 
-  @Column()
+  @Column({ type: 'timestamp' })
   expiresAt: Date;
-
-  @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date;
 
   @Column({ default: false })
   isRevoked: boolean;
 
-  @Column({ nullable: true })
-  revokedAt: Date;
+  @Column({ type: 'timestamp', nullable: true })
+  revokedAt?: Date;
 
   @Column({ nullable: true })
-  userAgent: string;
+  userAgent?: string;
 
   @Column({ nullable: true })
-  ipAddress: string;
+  ipAddress?: string;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

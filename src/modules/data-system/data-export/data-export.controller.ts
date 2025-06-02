@@ -10,6 +10,7 @@ import {
   Res,
   HttpStatus,
   BadRequestException,
+  HttpException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
@@ -23,9 +24,12 @@ import {
 } from './dto/data-export.dto';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { Logger } from '@nestjs/common';
 
 @Controller('data-export')
 export class DataExportController {
+  private readonly logger = new Logger(DataExportController.name);
+
   constructor(
     private readonly exportService: DataExportService,
     private readonly importService: DataImportService,
@@ -37,28 +41,41 @@ export class DataExportController {
     @Param('userId') userId: string,
     @Body() exportDto: ExportDataDto,
   ) {
-    const result = await this.exportService.exportUserData(
-      userId,
-      exportDto.format,
-      {
-        entities: exportDto.entities,
-        includeMetadata: exportDto.includeMetadata,
-        anonymize: exportDto.anonymize,
-      },
-    );
+    try {
+      const result = await this.exportService.exportUserData(
+        userId,
+        exportDto.format,
+        {
+          entities: exportDto.entities,
+          includeMetadata: exportDto.includeMetadata,
+          anonymize: exportDto.anonymize,
+        },
+      );
 
-    return {
-      success: result.success,
-      message: result.success
-        ? 'Export completed successfully'
-        : 'Export failed',
-      data: {
-        recordCount: result.recordCount,
-        checksum: result.checksum,
-        filePath: result.filePath,
-      },
-      errors: result.errors,
-    };
+      return {
+        success: result.success,
+        message: result.success
+          ? 'Export completed successfully'
+          : 'Export failed',
+        data: {
+          recordCount: result.recordCount,
+          checksum: result.checksum,
+          filePath: result.filePath,
+        },
+        errors: result.errors,
+      };
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(
+        `Export failed: ${errorMessage}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new HttpException(
+        `Failed to export data: ${errorMessage}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   @Post('export/puzzle/:puzzleId')
@@ -114,16 +131,25 @@ export class DataExportController {
 
       return {
         success: result.success,
-        message: result.success
-          ? 'Import completed successfully'
-          : 'Import completed with errors',
+        message: result.message,
         data: {
-          recordsProcessed: result.recordsProcessed,
-          recordsImported: result.recordsImported,
+          recordsProcessed: result.data.recordsProcessed,
+          recordsImported: result.data.recordsImported,
+          errors: result.data.errors,
+          warnings: result.data.warnings,
         },
-        errors: result.errors,
-        warnings: result.warnings,
       };
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(
+        `Import failed: ${errorMessage}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new HttpException(
+        `Failed to import data: ${errorMessage}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     } finally {
       // Clean up temp file
       try {
@@ -156,8 +182,8 @@ export class DataExportController {
 
       return {
         valid: result.success,
-        errors: result.errors,
-        warnings: result.warnings,
+        errors: result.data.errors,
+        warnings: result.data.warnings,
       };
     } finally {
       try {
@@ -213,21 +239,34 @@ export class DataExportController {
 
   @Post('backup/create')
   async createBackup() {
-    const result = await this.backupService.createFullBackup();
+    try {
+      const result = await this.backupService.createFullBackup();
 
-    return {
-      success: result.success,
-      message: result.success
-        ? 'Backup created successfully'
-        : 'Backup creation failed',
-      data: result.success
-        ? {
-            filePath: result.filePath,
-            checksum: result.checksum,
-          }
-        : null,
-      errors: result.errors,
-    };
+      return {
+        success: result.success,
+        message: result.success
+          ? 'Backup created successfully'
+          : 'Backup creation failed',
+        data: result.success
+          ? {
+              filePath: result.filePath,
+              checksum: result.checksum,
+            }
+          : null,
+        errors: result.errors,
+      };
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(
+        `Backup failed: ${errorMessage}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new HttpException(
+        `Failed to create backup: ${errorMessage}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   @Post('backup/restore')
