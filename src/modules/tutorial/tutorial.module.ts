@@ -30,6 +30,7 @@ import { TutorialContentService } from './providers/tutorial-content.service';
       TutorialContent,
       ContextualHelp,
       User,
+      TutorialProgress
     ]),
     ScheduleModule.forRoot(),
   ],
@@ -44,11 +45,6 @@ import { TutorialContentService } from './providers/tutorial-content.service';
     TutorialLocalizationService,
     TutorialContentService,
   ],
-  exports: [
-    TutorialService,
-    TutorialProgressService,
-    TutorialEngineService,
-    ContextualHelpService,
-  ],
+  exports: [TutorialService,TutorialAnalyticsService, TutorialProgressService, TutorialEngineService, ContextualHelpService],
 })
 export class TutorialModule {}

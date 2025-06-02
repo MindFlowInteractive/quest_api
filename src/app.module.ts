@@ -18,8 +18,8 @@ import { DataExportModule } from './modules/data-system/data-export/data-export.
 import { FileUploadModule } from './modules/file-upload/file-upload.module';
 import { TutorialModule } from './modules/tutorial/tutorial.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { UserModule } from './modules/user/user.module';
-
 
 @Module({
   imports: [
@@ -104,6 +104,8 @@ import { UserModule } from './modules/user/user.module';
     DataExportModule,
     FileUploadModule,
     TutorialModule,
+    UserModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

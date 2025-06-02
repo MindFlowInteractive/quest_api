@@ -136,13 +136,22 @@ export class AuthService {
       where: { passwordResetToken: token },
     });
 
-    if (!user || !user.passwordResetTokenExpiry || new Date() > user.passwordResetTokenExpiry) {
-      throw new BadRequestException('Invalid or expired reset token');
+    if (!user) {
+      throw new BadRequestException('Invalid or expired token');
     }
 
-    user.password = newPassword;
-    user.passwordResetToken = undefined;
-    user.passwordResetTokenExpiry = undefined;
+    // Check if token is expired
+    if (
+      !user.passwordResetTokenExpiry ||
+      new Date() > user.passwordResetTokenExpiry
+    ) {
+      throw new BadRequestException('Token expired');
+    }
+
+    // Update password and clear reset token
+    user.password = password; // Will be hashed by entity hook
+    user.passwordResetToken = '';
+    // user.passwordResetTokenExpiry = undefined;
     await this.userRepository.save(user);
   }
 
@@ -166,8 +175,8 @@ export class AuthService {
     }
 
     user.isEmailVerified = true;
-    user.emailVerificationToken = undefined;
-    user.emailVerificationTokenExpiry = undefined;
+    user.emailVerificationToken = '';
+    // user.emailVerificationTokenExpiry = null;
     await this.userRepository.save(user);
   }
 
