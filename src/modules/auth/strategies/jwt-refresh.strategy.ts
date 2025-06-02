@@ -12,7 +12,7 @@ interface JwtRefreshPayload {
   sub: string;
   email: string;
   username: string;
-  roles: string[];
+  role: string;
   iat: number;
   exp: number;
 }
@@ -38,9 +38,9 @@ export class JwtRefreshStrategy extends PassportStrategy(
     super({
       jwtFromRequest: ExtractJwt.fromBodyField('refreshToken'),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_REFRESH_SECRET'),
+      secretOrKey: configService.get<string>('JWT_REFRESH_SECRET', ''),
       passReqToCallback: true,
-    });
+    } as any);
   }
 
   async validate(req: RefreshTokenRequest, payload: JwtRefreshPayload) {
@@ -83,7 +83,7 @@ export class JwtRefreshStrategy extends PassportStrategy(
       id: user.id,
       email: user.email,
       username: user.username,
-      roles: user.roles,
+      role: user.role,
       refreshToken,
     };
   }

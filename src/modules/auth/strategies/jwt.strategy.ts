@@ -12,7 +12,7 @@ interface JwtPayload {
   jti: string;
   email: string;
   username: string;
-  roles: string[];
+  role: string;
   iat: number;
   exp: number;
 }
@@ -29,7 +29,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET'),
+      secretOrKey: configService.get<string>('JWT_SECRET', ''),
     });
   }
 
@@ -55,12 +55,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('User not found or inactive');
     }
 
-    // Return user object with roles for use in guards
+    // Return user object with role for use in guards
     return {
       id: user.id,
       email: user.email,
       username: user.username,
-      roles: user.roles,
+      role: user.role,
     };
   }
 }

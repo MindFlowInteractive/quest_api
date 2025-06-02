@@ -1,376 +1,394 @@
-import { IsString, IsEnum, IsOptional, IsBoolean, IsNumber, IsArray, IsObject, IsUUID, Min, Max } from "class-validator"
-import { ApiProperty } from "@nestjs/swagger"
-import { TutorialType, TutorialCategory, TutorialDifficulty } from "../entities/tutorial.entity"
-import { StepType, type InteractionType } from "../entities/tutorial-step.entity"
-import { ProgressStatus } from "../entities/utorial-progress.entity"
+import {
+  IsString,
+  IsEnum,
+  IsOptional,
+  IsBoolean,
+  IsNumber,
+  IsArray,
+  IsObject,
+  IsUUID,
+  Min,
+  Max,
+} from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import {
+  TutorialType,
+  TutorialCategory,
+  TutorialDifficulty,
+} from '../entities/tutorial.entity';
+import {
+  StepType,
+  type InteractionType,
+} from '../entities/tutorial-step.entity';
+import { ProgressStatus } from '../entities/utorial-progress.entity';
 
 export class CreateTutorialDto {
-  @ApiProperty({ description: "Tutorial title" })
+  @ApiProperty({ description: 'Tutorial title' })
   @IsString()
-  title!: string
+  title!: string;
 
-  @ApiProperty({ description: "Tutorial description" })
+  @ApiProperty({ description: 'Tutorial description' })
   @IsString()
-  description!: string
+  description!: string;
 
   @ApiProperty({ enum: TutorialType })
   @IsEnum(TutorialType)
-  type!: TutorialType
+  type!: TutorialType;
 
   @ApiProperty({ enum: TutorialCategory })
   @IsEnum(TutorialCategory)
-  category!: TutorialCategory
+  category!: TutorialCategory;
 
   @ApiProperty({ enum: TutorialDifficulty })
   @IsEnum(TutorialDifficulty)
-  difficulty!: TutorialDifficulty
+  difficulty!: TutorialDifficulty;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsNumber()
-  orderIndex?: number
+  orderIndex?: number;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  prerequisites?: string[]
+  prerequisites?: string[];
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  learningObjectives?: string[]
+  learningObjectives?: string[];
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  tags?: string[]
+  tags?: string[];
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsNumber()
   @Min(0)
-  estimatedDurationMinutes?: number
+  estimatedDurationMinutes?: number;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsBoolean()
-  isSkippable?: boolean
+  isSkippable?: boolean;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsBoolean()
-  isAdaptive?: boolean
+  isAdaptive?: boolean;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsObject()
-  adaptiveSettings?: Record<string, any>
+  adaptiveSettings?: Record<string, any>;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsObject()
-  accessibilityFeatures?: Record<string, any>
+  accessibilityFeatures?: Record<string, any>;
 }
 
 export class CreateTutorialStepDto {
-  @ApiProperty({ description: "Step title" })
+  @ApiProperty({ description: 'Step title' })
   @IsString()
-  title!: string
+  title!: string;
 
-  @ApiProperty({ description: "Step content" })
+  @ApiProperty({ description: 'Step content' })
   @IsString()
-  content!: string
+  content!: string;
 
   @ApiProperty({ enum: StepType })
   @IsEnum(StepType)
-  stepType!: StepType
+  stepType!: StepType;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsNumber()
-  orderIndex?: number
+  orderIndex?: number;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsObject()
   interactionConfig?: {
-    type?: InteractionType
-    target?: string
-    expectedAction?: string
-    validation?: Record<string, any>
-    hints?: string[]
-    maxAttempts?: number
-  }
+    type?: InteractionType;
+    target?: string;
+    expectedAction?: string;
+    validation?: Record<string, any>;
+    hints?: string[];
+    maxAttempts?: number;
+  };
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsObject()
-  mediaContent?: Record<string, any>
+  mediaContent?: Record<string, any>;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsNumber()
   @Min(0)
-  estimatedDurationSeconds?: number
+  estimatedDurationSeconds?: number;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsBoolean()
-  isOptional?: boolean
+  isOptional?: boolean;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsBoolean()
-  isCheckpoint?: boolean
+  isCheckpoint?: boolean;
 }
 
 export class UpdateProgressDto {
   @ApiProperty({ enum: ProgressStatus })
   @IsEnum(ProgressStatus)
-  status!: ProgressStatus
+  status!: ProgressStatus;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsNumber()
   @Min(0)
-  currentStepIndex?: number
+  currentStepIndex?: number;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsNumber()
   @Min(0)
-  timeSpentSeconds?: number
+  timeSpentSeconds?: number;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsNumber()
   @Min(0)
-  attempts?: number
+  attempts?: number;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsNumber()
   @Min(0)
-  hintsUsed?: number
+  hintsUsed?: number;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsNumber()
   @Min(0)
-  errorsCount?: number
+  errorsCount?: number;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsObject()
-  stepProgress?: Record<string, any>
+  stepProgress?: Record<string, any>;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsObject()
-  adaptiveData?: Record<string, any>
+  adaptiveData?: Record<string, any>;
 }
 
 export class SubmitFeedbackDto {
-  @ApiProperty({ description: "Overall rating", minimum: 1, maximum: 5 })
+  @ApiProperty({ description: 'Overall rating', minimum: 1, maximum: 5 })
   @IsNumber()
   @Min(1)
   @Max(5)
-  rating!: number
+  rating!: number;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
-  comments?: string
+  comments?: string;
 
   @ApiProperty({ required: false, minimum: 1, maximum: 5 })
   @IsOptional()
   @IsNumber()
   @Min(1)
   @Max(5)
-  difficulty?: number
+  difficulty?: number;
 
   @ApiProperty({ required: false, minimum: 1, maximum: 5 })
   @IsOptional()
   @IsNumber()
   @Min(1)
   @Max(5)
-  clarity?: number
+  clarity?: number;
 
   @ApiProperty({ required: false, minimum: 1, maximum: 5 })
   @IsOptional()
   @IsNumber()
   @Min(1)
   @Max(5)
-  usefulness?: number
+  usefulness?: number;
 }
 
 export class TutorialSearchDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
-  query?: string
+  query?: string;
 
   @ApiProperty({ required: false, enum: TutorialCategory })
   @IsOptional()
   @IsEnum(TutorialCategory)
-  category?: TutorialCategory
+  category?: TutorialCategory;
 
   @ApiProperty({ required: false, enum: TutorialDifficulty })
   @IsOptional()
   @IsEnum(TutorialDifficulty)
-  difficulty?: TutorialDifficulty
+  difficulty?: TutorialDifficulty;
 
   @ApiProperty({ required: false, enum: TutorialType })
   @IsOptional()
   @IsEnum(TutorialType)
-  type?: TutorialType
+  type?: TutorialType;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  tags?: string[]
+  tags?: string[];
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsNumber()
   @Min(1)
-  page?: number = 1
+  page?: number = 1;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsNumber()
   @Min(1)
   @Max(100)
-  limit?: number = 20
+  limit?: number = 20;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
-  sortBy?: string = "orderIndex"
+  sortBy?: string = 'orderIndex';
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
-  sortOrder?: "ASC" | "DESC" = "ASC"
+  sortOrder?: 'ASC' | 'DESC' = 'ASC';
 }
 
 export class StartTutorialDto {
-  @ApiProperty({ description: "Tutorial ID" })
+  @ApiProperty({ description: 'Tutorial ID' })
   @IsUUID()
-  tutorialId!: string
+  tutorialId!: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsObject()
   userPreferences?: {
-    skipIntroduction?: boolean
-    preferredPace?: "slow" | "normal" | "fast"
-    accessibilityNeeds?: string[]
-    language?: string
-  }
+    skipIntroduction?: boolean;
+    preferredPace?: 'slow' | 'normal' | 'fast';
+    accessibilityNeeds?: string[];
+    language?: string;
+  };
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsObject()
-  deviceInfo?: Record<string, any>
+  deviceInfo?: Record<string, any>;
 }
 
 export class StepInteractionDto {
-  @ApiProperty({ description: "Step ID" })
+  @ApiProperty({ description: 'Step ID' })
   @IsUUID()
-  stepId!: string
+  stepId!: string;
 
-  @ApiProperty({ description: "Interaction type" })
+  @ApiProperty({ description: 'Interaction type' })
   @IsString()
-  interactionType!: string
+  interactionType!: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsObject()
-  interactionData?: Record<string, any>
+  interactionData?: Record<string, any>;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsNumber()
   @Min(0)
-  timeSpent?: number
+  timeSpent?: number;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsBoolean()
-  isCorrect?: boolean
+  isCorrect?: boolean;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsNumber()
   @Min(0)
-  attempts?: number
+  attempts?: number;
 }
 
 export class CreateContextualHelpDto {
-  @ApiProperty({ description: "Help title" })
+  @ApiProperty({ description: 'Help title' })
   @IsString()
-  title!: string
+  title!: string;
 
-  @ApiProperty({ description: "Help content" })
+  @ApiProperty({ description: 'Help content' })
   @IsString()
-  content!: string
+  content!: string;
 
-  @ApiProperty({ description: "Game context" })
+  @ApiProperty({ description: 'Game context' })
   @IsString()
-  gameContext!: string
+  gameContext!: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
-  targetElement?: string
+  targetElement?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsObject()
-  displayConditions?: Record<string, any>
+  displayConditions?: Record<string, any>;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsNumber()
-  priority?: number
+  priority?: number;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsBoolean()
-  isDismissible?: boolean
+  isDismissible?: boolean;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsNumber()
   @Min(0)
-  maxDisplayCount?: number
+  maxDisplayCount?: number;
 }
 
 export class TutorialRecommendationDto {
-  @ApiProperty({ description: "User ID" })
+  @ApiProperty({ description: 'User ID' })
   @IsUUID()
-  userId!: string
+  userId!: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsNumber()
   @Min(1)
   @Max(10)
-  maxRecommendations?: number = 5
+  maxRecommendations?: number = 5;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsBoolean()
-  includeCompleted?: boolean = false
+  includeCompleted?: boolean = false;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  preferredCategories?: string[]
+  preferredCategories?: string[];
 }

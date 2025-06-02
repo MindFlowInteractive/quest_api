@@ -1,0 +1,37 @@
+<mjml>
+  <mj-head>
+    <mj-title>Welcome to LogiQuest!</mj-title>
+    <mj-font name="Roboto" href="https://fonts.googleapis.com/css?family=Roboto" />
+    <mj-attributes>
+      <mj-all font-family="Roboto, Helvetica, sans-serif" />
+    </mj-attributes>
+  </mj-head>
+  <mj-body background-color="#f4f4f4">
+    <mj-section background-color="#ffffff" padding="20px 0">
+      <mj-column>
+        <mj-image width="200px" src="https://your-logo-url.com/logo.png" alt="LogiQuest Logo" />
+        <mj-text font-size="20px" color="#333333" font-weight="bold" align="center">
+          Welcome to LogiQuest, {{name}}!
+        </mj-text>
+        <mj-text font-size="16px" color="#666666" line-height="24px">
+          We're excited to have you join our community of puzzle enthusiasts. Get ready to embark on an amazing journey of logic and discovery!
+        </mj-text>
+        <mj-button background-color="#4CAF50" color="white" href="https://your-app-url.com/get-started">
+          Get Started
+        </mj-button>
+        <mj-text font-size="14px" color="#999999" align="center">
+          If you have any questions, feel free to reply to this email.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-section background-color="#f4f4f4" padding="20px 0">
+      <mj-column>
+        <mj-text font-size="12px" color="#999999" align="center">
+          © 2024 LogiQuest. All rights reserved.
+          <br />
+          <a href="{{unsubscribeLink}}" style="color: #999999;">Unsubscribe</a>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml> 

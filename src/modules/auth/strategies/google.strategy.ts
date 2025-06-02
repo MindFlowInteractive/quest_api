@@ -1,48 +1,33 @@
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
-import { Strategy, VerifyCallback } from 'passport-google-oauth20';
+import { Strategy } from 'passport-google-oauth20';
 import { ConfigService } from '@nestjs/config';
-
-interface GoogleProfile {
-  id: string;
-  name: {
-    givenName: string;
-    familyName: string;
-  };
-  emails: Array<{ value: string; verified: boolean }>;
-  photos: Array<{ value: string }>;
-  provider: string;
-}
-
-interface GoogleUser {
-  email: string;
-  firstName: string;
-  lastName: string;
-  picture: string;
-  accessToken: string;
-  providerId: string;
-}
+import { AuthService } from '../services/auth.service';
+import { AuthProvider } from '../entities/user.entity';
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private authService: AuthService,
+  ) {
     super({
-      clientID: configService.get<string>('GOOGLE_CLIENT_ID'),
-      clientSecret: configService.get<string>('GOOGLE_CLIENT_SECRET'),
-      callbackURL: configService.get<string>('GOOGLE_CALLBACK_URL'),
+      clientID: configService.get<string>('GOOGLE_CLIENT_ID', ''),
+      clientSecret: configService.get<string>('GOOGLE_CLIENT_SECRET', ''),
+      callbackURL: configService.get<string>('GOOGLE_CALLBACK_URL', ''),
       scope: ['email', 'profile'],
+      passReqToCallback: true,
     });
   }
 
-  validate(
+  async validate(
+    request: any,
     accessToken: string,
     refreshToken: string,
-    profile: GoogleProfile,
-    done: VerifyCallback,
-  ): void {
+    profile: any,
+  ) {
     const { name, emails, photos } = profile;
-    
-    const user: GoogleUser = {
+    const user = {
       email: emails[0].value,
       firstName: name.givenName,
       lastName: name.familyName,
@@ -50,7 +35,6 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       accessToken,
       providerId: profile.id,
     };
-    
-    done(null, user);
+    return this.authService.validateOAuthLogin(user, AuthProvider.GOOGLE);
   }
 }
