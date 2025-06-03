@@ -20,6 +20,7 @@ import { TutorialModule } from './modules/tutorial/tutorial.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { UserModule } from './modules/user/user.module';
+import { UserProgressModule } from './modules/user-progress/user-progress.module';
 
 @Module({
   imports: [
@@ -45,7 +46,6 @@ import { UserModule } from './modules/user/user.module';
         synchronize: configService.get<boolean>('DB_SYNC'),
       }),
     }),
-
 
     // Database connection with TypeORM
     TypeOrmModule.forRootAsync({
@@ -122,6 +122,7 @@ import { UserModule } from './modules/user/user.module';
     TutorialModule,
     UserModule,
     NotificationsModule,
+    UserProgressModule,
   ],
   controllers: [AppController],
   providers: [AppService],
