@@ -8,7 +8,7 @@ import {
 import {
   ProgressStatus,
   TutorialProgress,
-} from '../entities/utorial-progress.entity';
+} from '../entities/tutorial-progress.entity';
 import { TutorialAnalyticsService } from './tutorial-analytics.service';
 import {
   SubmitFeedbackDto,

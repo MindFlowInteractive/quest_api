@@ -20,7 +20,7 @@ import {
   StepType,
   type InteractionType,
 } from '../entities/tutorial-step.entity';
-import { ProgressStatus } from '../entities/utorial-progress.entity';
+import { ProgressStatus } from '../entities/tutorial-progress.entity';
 
 export class CreateTutorialDto {
   @ApiProperty({ description: 'Tutorial title' })

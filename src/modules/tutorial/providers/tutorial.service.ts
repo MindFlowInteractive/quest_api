@@ -10,7 +10,7 @@ import { TutorialStep } from '../entities/tutorial-step.entity';
 import {
   ProgressStatus,
   TutorialProgress,
-} from '../entities/utorial-progress.entity';
+} from '../entities/tutorial-progress.entity';
 import { TutorialProgressService } from './tutorial-progress.service';
 import {
   CreateTutorialDto,

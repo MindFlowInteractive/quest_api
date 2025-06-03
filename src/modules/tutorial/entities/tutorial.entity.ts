@@ -8,7 +8,7 @@ import {
   Index,
 } from 'typeorm';
 import { TutorialStep } from './tutorial-step.entity';
-import { TutorialProgress } from './utorial-progress.entity';
+import { TutorialProgress } from './tutorial-progress.entity';
 
 export enum TutorialType {
   BASIC = 'basic',

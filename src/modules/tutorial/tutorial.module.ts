@@ -4,7 +4,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { Tutorial } from './entities/tutorial.entity';
 import { User } from '../data-system/entities/user.entity';
 import { TutorialStep } from './entities/tutorial-step.entity';
-import { TutorialProgress } from './entities/utorial-progress.entity';
+import { TutorialProgress } from './entities/tutorial-progress.entity';
 import { TutorialSession } from './entities/tutorial-session.entity';
 import { TutorialAnalytics } from './entities/tutorial-analytics.entity';
 import { TutorialContent } from './entities/tutorial-content.entity';
@@ -30,7 +30,7 @@ import { TutorialContentService } from './providers/tutorial-content.service';
       TutorialContent,
       ContextualHelp,
       User,
-      TutorialProgress
+      TutorialProgress,
     ]),
     ScheduleModule.forRoot(),
   ],
@@ -45,6 +45,12 @@ import { TutorialContentService } from './providers/tutorial-content.service';
     TutorialLocalizationService,
     TutorialContentService,
   ],
-  exports: [TutorialService,TutorialAnalyticsService, TutorialProgressService, TutorialEngineService, ContextualHelpService],
+  exports: [
+    TutorialService,
+    TutorialAnalyticsService,
+    TutorialProgressService,
+    TutorialEngineService,
+    ContextualHelpService,
+  ],
 })
 export class TutorialModule {}
