@@ -31,6 +31,22 @@ import { UserModule } from './modules/user/user.module';
       envFilePath: ['.env.local', '.env'],
     }),
 
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        type: configService.get<'postgres'>('DB_TYPE'),
+        host: configService.get<string>('DB_HOST'),
+        port: configService.get<number>('DB_PORT'),
+        username: configService.get<string>('DB_USERNAME'),
+        password: configService.get<string>('DB_PASSWORD'),
+        database: configService.get<string>('DB_NAME'),
+        entities: [__dirname + '/**/*.entity{.ts,.js}'],
+        synchronize: configService.get<boolean>('DB_SYNC'),
+      }),
+    }),
+
+
     // Database connection with TypeORM
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
