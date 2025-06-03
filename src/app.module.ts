@@ -20,8 +20,8 @@ import { TutorialModule } from './modules/tutorial/tutorial.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { UserModule } from './modules/user/user.module';
-import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { LeaderboardModule } from './modules/leaderboard/leaderboard.module';
+import { UserProgressModule } from './modules/user-progress/user-progress.module';
 
 @Module({
   imports: [
@@ -47,7 +47,6 @@ import { LeaderboardModule } from './modules/leaderboard/leaderboard.module';
         synchronize: configService.get<boolean>('DB_SYNC'),
       }),
     }),
-
 
     // Database connection with TypeORM
     TypeOrmModule.forRootAsync({
@@ -125,6 +124,7 @@ import { LeaderboardModule } from './modules/leaderboard/leaderboard.module';
     UserModule,
     NotificationsModule,
     LeaderboardModule,
+    UserProgressModule,
   ],
   controllers: [AppController],
   providers: [AppService],
