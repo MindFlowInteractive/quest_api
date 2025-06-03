@@ -40,7 +40,9 @@ export class ABTestingService {
   ): PuzzleConfig {
     const variant = this.getUserVariant(test, userId);
     return { ...config, ...variant };
-      private getUserVariant(test: ABTestConfig, userId: string): any {
+  }
+
+  private getUserVariant(test: ABTestConfig, userId: string): any {
     const hash = this.hashUserId(userId);
     return (hash % 2 === 0) ? test.variantA : test.variantB;
   }

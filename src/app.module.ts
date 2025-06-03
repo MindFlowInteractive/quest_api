@@ -20,6 +20,8 @@ import { TutorialModule } from './modules/tutorial/tutorial.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { UserModule } from './modules/user/user.module';
+import { LeaderboardModule } from './leaderboard/leaderboard.module';
+import { LeaderboardModule } from './modules/leaderboard/leaderboard.module';
 
 @Module({
   imports: [
@@ -122,6 +124,7 @@ import { UserModule } from './modules/user/user.module';
     TutorialModule,
     UserModule,
     NotificationsModule,
+    LeaderboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],
