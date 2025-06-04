@@ -20,6 +20,7 @@ import { TutorialModule } from './modules/tutorial/tutorial.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { UserModule } from './modules/user/user.module';
+import { LeaderboardModule } from './modules/leaderboard/leaderboard.module';
 import { UserProgressModule } from './modules/user-progress/user-progress.module';
 
 @Module({
@@ -122,6 +123,7 @@ import { UserProgressModule } from './modules/user-progress/user-progress.module
     TutorialModule,
     UserModule,
     NotificationsModule,
+    LeaderboardModule,
     UserProgressModule,
   ],
   controllers: [AppController],
