@@ -1,9 +1,15 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, OneToMany, ManyToMany, JoinTable } from 'typeorm';
+import { VersionHistory } from './version-history.entity';
+import { PuzzleComponent } from './puzzle-component.entity';
+import { User } from '@/modules/user/entities/user.entity';
 
 @Entity()
 export class GenerationMetrics {
   @PrimaryGeneratedColumn()
   id: number;
+
+   @Column()
+  title: string;
 
   @Column()
   puzzleType: string;
@@ -28,6 +34,28 @@ export class GenerationMetrics {
 
   @Column('json')
   parameters: any;
+
+  @Column('jsonb')
+  layout: any;
+
+  @Column()
+  createdBy: string;
+
+  @OneToMany(() => VersionHistory, vh => vh.puzzle)
+  versionHistory: VersionHistory[];
+
+  @OneToMany(() => PuzzleComponent, pc => pc.puzzle)
+  components: PuzzleComponent[];
+
+  @ManyToMany(() => User)
+  @JoinTable()
+  contributors: User[];
+
+  @Column({ default: false })
+  isTemplate: boolean;
+
+  @Column({ default: false })
+  isApproved: boolean;
 
   @CreateDateColumn()
   createdAt: Date;

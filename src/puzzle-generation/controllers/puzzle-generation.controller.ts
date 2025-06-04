@@ -16,6 +16,7 @@ import { GenerationAnalyticsService } from '../services/generation-analytics.ser
 import { ABTestingService } from '../services/ab-testing.service';
 import { PuzzleConfig, GeneratedPuzzle } from '../interfaces/puzzle.interface';
 import { GeneratePuzzleDto, AnalyticsQueryDto } from '../dto/puzzle-generation.dto';
+import { PuzzleService } from '../services/PuzzleService';
 
 @Controller('puzzle-generation')
 export class PuzzleGenerationController {
@@ -25,6 +26,7 @@ export class PuzzleGenerationController {
     private puzzleGenerationService: PuzzleGenerationService,
     private analyticsService: GenerationAnalyticsService,
     private abTestingService: ABTestingService,
+    private readonly puzzleService: PuzzleService
   ) {}
 
   @Post('generate')
@@ -178,5 +180,28 @@ export class PuzzleGenerationController {
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
+  }
+
+  @Post()
+  create(@Body() body: { title: string; layout: any; createdBy: string }) {
+    return this.puzzleService.createPuzzle(body.title, body.layout, body.createdBy);
+  }
+
+  @Post(':id/components')
+  addComponent(
+    @Param('id') id: string,
+    @Body() body: { type: string; config: any; position: string },
+  ) {
+    return this.puzzleService.addComponent(+id, body.type, body.config, body.position);
+  }
+
+  @Post(':id/validate')
+  validate(@Param('id') id: string) {
+    return this.puzzleService.validatePuzzle(+id);
+  }
+
+  @Post(':id/version')
+  version(@Param('id') id: string, @Body() body: { changedBy: string }) {
+    return this.puzzleService.createVersion(+id, body.changedBy);
   }
 }
