@@ -12,6 +12,10 @@ import { PuzzleGenerationController } from './controllers/puzzle-generation.cont
 import { GenerationMetrics } from './entities/generation-metrics.entity';
 import { UserPreferences } from './entities/user-preferences.entity';
 import { ABTestConfig } from './entities/ab-test-config.entity';
+import { VersionHistory } from './entities/version-history.entity';
+import { PuzzleComponent } from './entities/puzzle-component.entity';
+import { Puzzle } from '@/modules/puzzles/entities/puzzle.entity';
+import { PuzzleService } from './services/PuzzleService';
 
 @Module({
   imports: [
@@ -20,7 +24,7 @@ import { ABTestConfig } from './entities/ab-test-config.entity';
       ttl: 600, // 10 minutes
       max: 1000, // Maximum number of items in cache
     }),
-    TypeOrmModule.forFeature([GenerationMetrics, UserPreferences, ABTestConfig]),
+    TypeOrmModule.forFeature([GenerationMetrics, UserPreferences, ABTestConfig, Puzzle, PuzzleComponent, VersionHistory]),
   ],
   controllers: [PuzzleGenerationController],
   providers: [
@@ -30,6 +34,7 @@ import { ABTestConfig } from './entities/ab-test-config.entity';
     GenerationAnalyticsService,
     CacheOptimizationService,
     ABTestingService,
+    PuzzleService
   ],
   exports: [PuzzleGenerationService],
 })
