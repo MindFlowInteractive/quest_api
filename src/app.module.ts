@@ -22,6 +22,9 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { UserModule } from './modules/user/user.module';
 import { LeaderboardModule } from './modules/leaderboard/leaderboard.module';
 import { UserProgressModule } from './modules/user-progress/user-progress.module';
+import { UserModule } from './user/user.module';
+import { AchievementModule } from './achievement/achievement.module';
+import { GameSessionModule } from './game-session/game-session.module';
 
 @Module({
   imports: [
@@ -125,6 +128,8 @@ import { UserProgressModule } from './modules/user-progress/user-progress.module
     NotificationsModule,
     LeaderboardModule,
     UserProgressModule,
+    AchievementModule,
+    GameSessionModule,
   ],
   controllers: [AppController],
   providers: [AppService],
