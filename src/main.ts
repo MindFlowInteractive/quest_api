@@ -9,23 +9,21 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-
-  // Get configuration service
   const configService = app.get(ConfigService);
 
   // Use Winston logger
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
 
-  // Security middleware
+  // Apply security headers
   app.use(helmet());
 
-  // CORS configuration
+  // Enable CORS
   app.enableCors({
     origin: configService.get<string>('cors.origin'),
     credentials: true,
   });
 
-  // Global validation pipe
+  // Global validation
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -37,34 +35,39 @@ async function bootstrap() {
     }),
   );
 
-  // API prefix
+  // Set API prefix
   app.setGlobalPrefix('api/v1');
 
-  // Swagger documentation
-  const config = new DocumentBuilder()
-    .setTitle('LogiQuest API')
-    .setDescription('The LogiQuest puzzle game API')
-    .setVersion('1.0')
-    .addTag('users', 'User management endpoints')
-    .addTag('puzzles', 'Puzzle management endpoints')
-    .addTag('achievements', 'Achievement management endpoints')
-    .addTag('game', 'Game logic endpoints')
-    .addBearerAuth()
-    .build();
+  // Swagger Setup (enabled by env flag)
+  if (configService.get('ENABLE_SWAGGER') !== 'false') {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('LogiQuest API')
+      .setDescription('Comprehensive API documentation for the LogiQuest puzzle game')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .addServer('/api/v1')
+      .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document, {
-    swaggerOptions: {
-      persistAuthorization: true,
-    },
-  });
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
 
-  // Start server
+    SwaggerModule.setup('api/docs', app, document, {
+      swaggerOptions: {
+        persistAuthorization: true,
+        displayRequestDuration: true,
+      },
+      customSiteTitle: 'LogiQuest API Docs',
+      // Optionally include this if you have custom CSS hosted
+      // customCssUrl: '/docs/custom-swagger.css',
+    });
+
+    console.log(`📚 Swagger documentation available at: http://localhost:${configService.get<number>('port')}/api/docs`);
+  }
+
+  // Launch app
   const port = configService.get<number>('port') ?? 3000;
   await app.listen(port);
 
-  console.log(`🚀 LogiQuest API is running on: http://localhost:${port}`);
-  console.log(`📚 Swagger documentation: http://localhost:${port}/api/docs`);
+  console.log(`🚀 LogiQuest API running at: http://localhost:${port}`);
 }
 
 void bootstrap();
