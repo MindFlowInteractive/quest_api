@@ -25,6 +25,7 @@ import { UserProgressModule } from './modules/user-progress/user-progress.module
 import { UserModule } from './user/user.module';
 import { AchievementModule } from './achievement/achievement.module';
 import { GameSessionModule } from './game-session/game-session.module';
+import { AntiCheatModule } from './modules/anti-cheat/anti-cheat.module';
 
 @Module({
   imports: [
@@ -130,6 +131,7 @@ import { GameSessionModule } from './game-session/game-session.module';
     UserProgressModule,
     AchievementModule,
     GameSessionModule,
+    AntiCheatModule,
   ],
   controllers: [AppController],
   providers: [AppService],
