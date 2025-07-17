@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { PuzzleService } from './puzzle.service';
+import { AntiCheatDetectionService } from '../modules/anti-cheat/services/anti-cheat-detection.service';
 import {
   PuzzleStateDto,
   CreatePuzzleDto,
@@ -30,7 +31,10 @@ import {
 export class PuzzleController {
   private readonly logger = new Logger(PuzzleController.name);
 
-  constructor(private readonly puzzleService: PuzzleService) {}
+  constructor(
+    private readonly puzzleService: PuzzleService,
+    private readonly antiCheatService: AntiCheatDetectionService,
+  ) {}
 
   @Post('create')
   @ApiOperation({ summary: 'Create a new puzzle' })
@@ -81,11 +85,36 @@ export class PuzzleController {
     @Param('puzzleId') puzzleId: string,
     @Body() movePuzzleDto: MovePuzzleDto,
     @Body('currentState') currentState: PuzzleStateDto,
+    @Body('moveMetadata') moveMetadata?: any, // Additional metadata for anti-cheat validation
   ): Promise<PuzzleStateDto> {
     try {
       this.logger.log(
         `Making move in puzzle ${puzzleId}: ${movePuzzleDto.type}`,
       );
+
+      // Perform basic anti-cheat validation on move timing and sequence
+      if (moveMetadata) {
+        const isValidMove = await this.antiCheatService.validateMove({
+          puzzleId,
+          puzzleType: currentState.data?.type || 'unknown',
+          move: movePuzzleDto,
+          currentState,
+          moveMetadata,
+        });
+
+        if (!isValidMove.isValid) {
+          this.logger.warn(
+            `Suspicious move detected for puzzle ${puzzleId}: ${isValidMove.reasons.join(', ')}`,
+          );
+          // For moves, we log but don't block unless confidence is very high
+          if (isValidMove.confidence > 0.9) {
+            throw new HttpException(
+              'Move validation failed',
+              HttpStatus.BAD_REQUEST,
+            );
+          }
+        }
+      }
 
       const move = {
         ...movePuzzleDto,
@@ -155,9 +184,36 @@ export class PuzzleController {
   async checkSolution(
     @Param('puzzleId') puzzleId: string,
     @Body('currentState') currentState: PuzzleStateDto,
+    @Body('solutionData') solutionData?: any, // Additional data for anti-cheat validation
   ): Promise<PuzzleResultResponseDto> {
     try {
       this.logger.log(`Checking solution for puzzle ${puzzleId}`);
+
+      // First, perform anti-cheat validation if solution data is provided
+      if (solutionData) {
+        const antiCheatResult = await this.antiCheatService.validatePuzzleSolution({
+          puzzleId,
+          puzzleType: currentState.data?.type || 'unknown',
+          moves: solutionData.moves || [],
+          solutionTime: solutionData.solutionTime || 0,
+          startTime: solutionData.startTime || Date.now(),
+          endTime: solutionData.endTime || Date.now(),
+          deviceInfo: solutionData.deviceInfo,
+          browserInfo: solutionData.browserInfo,
+          userId: solutionData.userId || 'anonymous',
+        });
+
+        // If cheating is detected with high confidence, reject the solution
+        if (antiCheatResult.cheatDetected && antiCheatResult.confidence > 0.8) {
+          this.logger.warn(
+            `Cheating detected for puzzle ${puzzleId}: ${antiCheatResult.reasons.join(', ')}`,
+          );
+          throw new HttpException(
+            'Solution validation failed due to suspicious activity',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+      }
 
       const result = await this.puzzleService.checkSolution(currentState);
 
